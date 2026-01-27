@@ -1,0 +1,20 @@
+services:
+  web:
+    image: node:20-alpine
+    working_dir: /app
+    command: sh -c "npm install && npm run dev -- --hostname 0.0.0.0 --port 3000 --webpack"
+    ports:
+      - "3000:3000"
+    environment:
+      NODE_ENV: development
+      NEXT_DISABLE_TURBOPACK: "1"
+      SIGHTSIGNAL_DATA_STORE: postgres
+      SIGHTSIGNAL_DATABASE_URL: postgres://sightsignal:sightsignal@db:5432/sightsignal
+    volumes:
+      - ./:/app
+      - /app/node_modules
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - sightsignal

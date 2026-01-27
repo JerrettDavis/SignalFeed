@@ -1,0 +1,335 @@
+openapi: 3.0.3
+info:
+  title: SightSignal API
+  version: 0.1.0
+  description: Contract-first API for map-based signals and geofences.
+servers:
+  - url: https://sightsignal.example.com
+paths:
+  /api/sightings:
+    get:
+      summary: List sightings
+      parameters:
+        - in: query
+          name: typeId
+          schema:
+            type: string
+        - in: query
+          name: categoryId
+          schema:
+            type: string
+        - in: query
+          name: status
+          schema:
+            type: string
+            enum: [active, resolved]
+        - in: query
+          name: bounds
+          description: Polygon JSON payload for map filtering.
+          schema:
+            type: string
+      responses:
+        "200":
+          description: List of sightings
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SightingListResponse"
+    post:
+      summary: Create a sighting
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateSightingRequest"
+      responses:
+        "201":
+          description: Sighting created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SightingResponse"
+  /api/sightings/{id}:
+    get:
+      summary: Get a sighting by id
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Sighting
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SightingResponse"
+        "404":
+          description: Not found
+  /api/geofences:
+    get:
+      summary: List geofences
+      parameters:
+        - in: query
+          name: visibility
+          schema:
+            type: string
+            enum: [public, private]
+        - in: query
+          name: bounds
+          description: Polygon JSON payload for filtering.
+          schema:
+            type: string
+      responses:
+        "200":
+          description: List of geofences
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GeofenceListResponse"
+    post:
+      summary: Create a geofence
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateGeofenceRequest"
+      responses:
+        "201":
+          description: Geofence created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GeofenceResponse"
+  /api/geofences/{id}:
+    get:
+      summary: Get a geofence by id
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Geofence
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GeofenceResponse"
+        "404":
+          description: Not found
+  /api/subscriptions:
+    get:
+      summary: List subscriptions
+      parameters:
+        - in: query
+          name: email
+          schema:
+            type: string
+      responses:
+        "200":
+          description: List of subscriptions
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SubscriptionListResponse"
+    post:
+      summary: Create a subscription
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateSubscriptionRequest"
+      responses:
+        "201":
+          description: Subscription created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SubscriptionResponse"
+components:
+  schemas:
+    LatLng:
+      type: object
+      required: [lat, lng]
+      properties:
+        lat:
+          type: number
+          minimum: -90
+          maximum: 90
+        lng:
+          type: number
+          minimum: -180
+          maximum: 180
+    CreateSightingRequest:
+      type: object
+      required: [typeId, categoryId, location, description, observedAt]
+      properties:
+        typeId:
+          type: string
+        categoryId:
+          type: string
+        location:
+          $ref: "#/components/schemas/LatLng"
+        description:
+          type: string
+          maxLength: 1000
+        details:
+          type: string
+          maxLength: 2000
+        importance:
+          type: string
+          enum: [low, normal, high, critical]
+        observedAt:
+          type: string
+          format: date-time
+        fields:
+          type: object
+          additionalProperties:
+            oneOf:
+              - type: string
+              - type: number
+              - type: boolean
+        reporterId:
+          type: string
+    Sighting:
+      allOf:
+        - $ref: "#/components/schemas/CreateSightingRequest"
+        - type: object
+          required: [id, status, createdAt]
+          properties:
+            id:
+              type: string
+            status:
+              type: string
+              enum: [active, resolved]
+            createdAt:
+              type: string
+              format: date-time
+    SightingListResponse:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/Sighting"
+    SightingResponse:
+      type: object
+      properties:
+        data:
+          $ref: "#/components/schemas/Sighting"
+    CreateGeofenceRequest:
+      type: object
+      required: [name, polygon, visibility]
+      properties:
+        name:
+          type: string
+          maxLength: 80
+        polygon:
+          type: object
+          required: [points]
+          properties:
+            points:
+              type: array
+              minItems: 3
+              items:
+                $ref: "#/components/schemas/LatLng"
+        visibility:
+          type: string
+          enum: [public, private]
+        ownerId:
+          type: string
+    Geofence:
+      allOf:
+        - $ref: "#/components/schemas/CreateGeofenceRequest"
+        - type: object
+          required: [id, createdAt]
+          properties:
+            id:
+              type: string
+            createdAt:
+              type: string
+              format: date-time
+    GeofenceListResponse:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/Geofence"
+    GeofenceResponse:
+      type: object
+      properties:
+        data:
+          $ref: "#/components/schemas/Geofence"
+    CreateSubscriptionRequest:
+      type: object
+      required: [email, target]
+      properties:
+        email:
+          type: string
+          format: email
+        target:
+          oneOf:
+            - type: object
+              required: [kind, geofenceId]
+              properties:
+                kind:
+                  type: string
+                  enum: [geofence]
+                geofenceId:
+                  type: string
+            - type: object
+              required: [kind, polygon]
+              properties:
+                kind:
+                  type: string
+                  enum: [polygon]
+                polygon:
+                  type: object
+                  required: [points]
+                  properties:
+                    points:
+                      type: array
+                      minItems: 3
+                      items:
+                        $ref: "#/components/schemas/LatLng"
+        categoryIds:
+          type: array
+          items:
+            type: string
+        typeIds:
+          type: array
+          items:
+            type: string
+        trustLevel:
+          type: string
+          enum: [raw, vetted, all]
+    Subscription:
+      allOf:
+        - $ref: "#/components/schemas/CreateSubscriptionRequest"
+        - type: object
+          required: [id, createdAt]
+          properties:
+            id:
+              type: string
+            createdAt:
+              type: string
+              format: date-time
+    SubscriptionListResponse:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/Subscription"
+    SubscriptionResponse:
+      type: object
+      properties:
+        data:
+          $ref: "#/components/schemas/Subscription"
