@@ -81,7 +81,7 @@ export const postgresSignalRepository = (): SignalRepository => {
 
       // Build dynamic query with filters
       let query = "select * from signals where 1=1";
-      const params: unknown[] = [];
+      const params: Array<string | boolean> = [];
 
       if (filters.ownerId) {
         query += ` and owner_id = $${params.length + 1}`;
@@ -130,7 +130,7 @@ export const postgresSignalRepository = (): SignalRepository => {
         left join signal_subscriptions ss on s.id = ss.signal_id
         where 1=1
       `;
-      const params: unknown[] = [];
+      const params: Array<string | boolean> = [];
 
       if (filters.ownerId) {
         query += ` and s.owner_id = $${params.length + 1}`;
