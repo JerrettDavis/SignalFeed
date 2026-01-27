@@ -5,7 +5,6 @@ import type { SightingReactionRepository } from "@/ports/sighting-reaction-repos
 import type { ReputationRepository } from "@/ports/reputation-repository";
 import type { SightingId } from "@/domain/sightings/sighting";
 import type { UserId } from "@/domain/reputation/reputation";
-import type { SightingReactionType } from "@/domain/sightings/sighting-reaction";
 import {
   createSightingReaction,
   calculateBaseScore,

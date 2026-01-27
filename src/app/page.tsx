@@ -66,7 +66,8 @@ export default function Home() {
   }, []);
 
   useEffect(() => {
-    void loadSightings();
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    loadSightings();
   }, [loadSightings]);
 
   useEffect(() => {

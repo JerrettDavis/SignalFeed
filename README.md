@@ -103,6 +103,7 @@ Playwright will prompt to install browsers on first run.
 ## Features
 
 ### Core Capabilities
+
 - **Map-First Interface**: Interactive map using MapLibre GL for reporting and viewing sightings
 - **Sighting Management**: Create, view, and manage local sightings (hazards, events, community notes)
 - **Geofence Subscriptions**: Subscribe to specific geographic areas to receive notifications
@@ -110,6 +111,7 @@ Playwright will prompt to install browsers on first run.
 - **Real-time Updates**: Live updates for sightings in your subscribed areas
 
 ### Architecture
+
 - **Clean Architecture**: Domain-driven design with clear separation of concerns
 - **Multiple Storage Options**: File-based, in-memory, or PostgreSQL data persistence
 - **Type-Safe**: Full TypeScript with runtime validation using Zod
@@ -117,6 +119,7 @@ Playwright will prompt to install browsers on first run.
 - **Modern Stack**: Next.js 16 App Router, React 19, Tailwind CSS 4
 
 ### Developer Experience
+
 - **Docker Support**: Complete containerized development environment
 - **Testing**: Comprehensive unit tests with Vitest and E2E tests with Playwright
 - **Type Safety**: TypeScript with strict mode and ESLint configuration
@@ -135,6 +138,7 @@ Playwright will prompt to install browsers on first run.
 ## Contributing
 
 We welcome contributions! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for details on:
+
 - Development setup
 - Coding standards
 - Commit guidelines
