@@ -70,7 +70,7 @@ export const postgresSignalSubscriptionRepository =
 
         // Build dynamic query with filters
         let query = "select * from signal_subscriptions where 1=1";
-        const params: unknown[] = [];
+        const params: string[] = [];
 
         if (filters.signalId) {
           query += ` and signal_id = $${params.length + 1}`;
