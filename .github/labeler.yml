@@ -1,0 +1,37 @@
+# Label PRs based on file paths changed
+
+'area: documentation':
+  - changed-files:
+    - any-glob-to-any-file: ['docs/**/*', '*.md', 'README*']
+
+'area: ci/cd':
+  - changed-files:
+    - any-glob-to-any-file: ['.github/**/*', 'docker-compose*.yml', 'Dockerfile']
+
+'area: database':
+  - changed-files:
+    - any-glob-to-any-file: ['db/**/*', 'scripts/*db*.mjs']
+
+'area: testing':
+  - changed-files:
+    - any-glob-to-any-file: ['tests/**/*', '**/*.test.ts', '**/*.spec.ts', 'playwright.config*.ts', 'vitest.config.ts']
+
+'area: frontend':
+  - changed-files:
+    - any-glob-to-any-file: ['src/app/**/*', 'src/components/**/*', 'src/hooks/**/*']
+
+'area: backend':
+  - changed-files:
+    - any-glob-to-any-file: ['src/domain/**/*', 'src/application/**/*', 'src/adapters/**/*', 'src/ports/**/*']
+
+'area: api':
+  - changed-files:
+    - any-glob-to-any-file: ['src/app/api/**/*']
+
+'area: dependencies':
+  - changed-files:
+    - any-glob-to-any-file: ['package.json', 'package-lock.json']
+
+'area: config':
+  - changed-files:
+    - any-glob-to-any-file: ['*.config.*', 'tsconfig.json', '.eslintrc*', '.prettierrc*']
