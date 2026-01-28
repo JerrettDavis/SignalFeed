@@ -51,6 +51,7 @@ export default function Home() {
   const [importanceFilter, setImportanceFilter] = useState<string>("all");
   const [isAdmin, setIsAdmin] = useState(false);
   const [exploreMenuOpen, setExploreMenuOpen] = useState(false);
+  const [showWelcome, setShowWelcome] = useState(false);
 
   const loadSightings = useCallback(async () => {
     try {
@@ -87,6 +88,24 @@ export default function Home() {
     };
     void checkAdminStatus();
   }, []);
+
+  useEffect(() => {
+    // Check if user has dismissed the welcome wizard
+    const hasSeenWelcome = localStorage.getItem(
+      "sightsignal-welcome-dismissed"
+    );
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setShowWelcome(!hasSeenWelcome);
+  }, []);
+
+  const dismissWelcome = () => {
+    localStorage.setItem("sightsignal-welcome-dismissed", "true");
+    setShowWelcome(false);
+  };
+
+  const showWelcomeWizard = () => {
+    setShowWelcome(true);
+  };
 
   const openView = (view: View) => {
     setActiveView(view);
@@ -208,6 +227,28 @@ export default function Home() {
         </nav>
 
         <div className="flex items-center gap-2">
+          {/* Help Icon to reopen wizard */}
+          <button
+            onClick={showWelcomeWizard}
+            className="flex h-9 w-9 items-center justify-center rounded-lg text-[color:var(--text-secondary)] hover:bg-[color:var(--surface)] hover:text-[color:var(--text-primary)] transition"
+            title="Show welcome guide"
+          >
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="20"
+              height="20"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <circle cx="12" cy="12" r="10" />
+              <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
+              <path d="M12 17h.01" />
+            </svg>
+          </button>
           {isAdmin && (
             <a
               href="/admin"
@@ -260,22 +301,57 @@ export default function Home() {
           </svg>
         </button>
 
-        {/* Welcome Card - Only shown on first visit */}
-        <div className="absolute left-4 top-4 max-w-sm rounded-xl bg-[color:var(--surface-elevated)] p-4 shadow-[var(--shadow-md)] z-10">
-          <h2 className="text-base font-semibold text-[color:var(--text-primary)]">
-            Welcome to SightSignal
-          </h2>
-          <p className="mt-2 text-sm text-[color:var(--text-secondary)]">
-            Share and track local sightings, events, and hazards. Click the map
-            to explore signals or use the menu to report new ones.
-          </p>
-          <button
-            onClick={() => openView("sightings")}
-            className="mt-3 rounded-lg bg-[color:var(--accent-primary)] px-4 py-2 text-sm font-medium text-white hover:bg-[color:var(--accent-hover)] transition"
-          >
-            Get started
-          </button>
-        </div>
+        {/* Welcome Card - Dismissable wizard */}
+        {showWelcome && (
+          <div className="absolute left-4 top-4 max-w-sm rounded-xl bg-[color:var(--surface-elevated)] p-4 shadow-[var(--shadow-md)] z-10 border border-[color:var(--border)]">
+            <div className="flex items-start justify-between gap-2">
+              <h2 className="text-base font-semibold text-[color:var(--text-primary)]">
+                Welcome to SightSignal
+              </h2>
+              <button
+                onClick={dismissWelcome}
+                className="flex-shrink-0 flex h-6 w-6 items-center justify-center rounded text-[color:var(--text-tertiary)] hover:bg-[color:var(--surface)] hover:text-[color:var(--text-primary)] transition"
+                title="Dismiss"
+              >
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  width="16"
+                  height="16"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <path d="M18 6 6 18" />
+                  <path d="m6 6 12 12" />
+                </svg>
+              </button>
+            </div>
+            <p className="mt-2 text-sm text-[color:var(--text-secondary)]">
+              Share and track local sightings, events, and hazards. Click the
+              map to explore signals or use the menu to report new ones.
+            </p>
+            <div className="mt-3 flex gap-2">
+              <button
+                onClick={() => {
+                  openView("sightings");
+                  dismissWelcome();
+                }}
+                className="rounded-lg bg-[color:var(--accent-primary)] px-4 py-2 text-sm font-medium text-white hover:bg-[color:var(--accent-hover)] transition"
+              >
+                Get started
+              </button>
+              <button
+                onClick={dismissWelcome}
+                className="rounded-lg border border-[color:var(--border)] px-4 py-2 text-sm font-medium text-[color:var(--text-secondary)] hover:bg-[color:var(--surface)] hover:text-[color:var(--text-primary)] transition"
+              >
+                Maybe later
+              </button>
+            </div>
+          </div>
+        )}
       </main>
 
       {/* Sidebars */}

@@ -3,11 +3,13 @@
 import type maplibregl from "maplibre-gl";
 import type { GeoJSONSource } from "maplibre-gl";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import Link from "next/link";
 import { z } from "zod";
 import { SightingSchema } from "@/contracts/sighting";
 import { EVENTS } from "@/shared/events";
 import { loadMaplibre } from "@/shared/maplibre";
 import { config } from "@/shared/config";
+import { useTheme } from "@/hooks/useTheme";
 
 type ApiResponse<T> = {
   data: T;
@@ -38,6 +40,7 @@ export const FullscreenMap = () => {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<maplibregl.Map | null>(null);
   const popupRef = useRef<maplibregl.Popup | null>(null);
+  const { effectiveTheme } = useTheme();
 
   const [sightings, setSightings] = useState<SightingRecord[]>([]);
   const [status, setStatus] = useState<"idle" | "loading" | "error">("idle");
@@ -97,9 +100,13 @@ export const FullscreenMap = () => {
         return;
       }
 
+      // Use theme-appropriate map style
+      const mapStyleUrl =
+        effectiveTheme === "dark" ? "/map-style-dark.json" : config.mapStyleUrl;
+
       const map = new maplibre.Map({
         container: containerRef.current,
-        style: config.mapStyleUrl,
+        style: mapStyleUrl,
         center: [-98.5795, 39.8283],
         zoom: 4,
         pitch: 0,
@@ -182,7 +189,6 @@ export const FullscreenMap = () => {
 
         map.on("error", (event) => {
           if (event.error) {
-            // eslint-disable-next-line no-console
             console.error("Map error:", event.error);
             setMapStatus("error");
           }
@@ -202,7 +208,73 @@ export const FullscreenMap = () => {
       mapInstance?.remove();
       mapRef.current = null;
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Update map style when theme changes
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || mapStatus !== "loaded") return;
+
+    const mapStyleUrl =
+      effectiveTheme === "dark" ? "/map-style-dark.json" : config.mapStyleUrl;
+
+    // Get current center and zoom to preserve view
+    const center = map.getCenter();
+    const zoom = map.getZoom();
+    const pitch = map.getPitch();
+
+    map.setStyle(mapStyleUrl);
+
+    // Re-add layers after style loads
+    map.once("styledata", () => {
+      // Restore view
+      map.setCenter(center);
+      map.setZoom(zoom);
+      map.setPitch(pitch);
+
+      // Re-add sightings source and layers
+      if (!map.getSource("sightings")) {
+        map.addSource("sightings", {
+          type: "geojson",
+          data: geoJsonRef.current,
+        });
+
+        map.addLayer({
+          id: "sightings-glow",
+          type: "circle",
+          source: "sightings",
+          paint: {
+            "circle-radius": 20,
+            "circle-color": "#f2c94c",
+            "circle-opacity": 0.2,
+          },
+        });
+
+        map.addLayer({
+          id: "sightings",
+          type: "circle",
+          source: "sightings",
+          paint: {
+            "circle-radius": 8,
+            "circle-color": [
+              "match",
+              ["get", "importance"],
+              "critical",
+              "#f06449",
+              "high",
+              "#f2c94c",
+              "low",
+              "#1f6f5b",
+              "#3a86ff",
+            ],
+            "circle-stroke-width": 2,
+            "circle-stroke-color": "#0c1a24",
+          },
+        });
+      }
+    });
+  }, [effectiveTheme, mapStatus]);
 
   useEffect(() => {
     const map = mapRef.current;
@@ -264,12 +336,12 @@ export const FullscreenMap = () => {
             ? "Map data offline"
             : `${sightings.length} signals`}
       </div>
-      <a
+      <Link
         href="/"
         className="absolute left-6 bottom-6 z-10 rounded-full border border-[color:var(--ink)]/10 bg-white/90 px-4 py-2 text-xs font-semibold uppercase tracking-[0.2em] text-[color:var(--ink)] shadow-md"
       >
         Back home
-      </a>
+      </Link>
     </div>
   );
 };

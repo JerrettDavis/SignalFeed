@@ -6,6 +6,7 @@ import { useEffect, useMemo, useRef } from "react";
 import { config } from "@/shared/config";
 import { loadMaplibre } from "@/shared/maplibre";
 import type { SightingCard } from "@/data/mock-sightings";
+import { useTheme } from "@/hooks/useTheme";
 
 type SelectedGeofence = {
   id: string;
@@ -59,6 +60,7 @@ export const SightingsMap = ({
   const containerRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<maplibregl.Map | null>(null);
   const popupRef = useRef<maplibregl.Popup | null>(null);
+  const { effectiveTheme } = useTheme();
 
   const geoJson = useMemo(() => toGeoJson(sightings), [sightings]);
   const geoJsonRef = useRef(geoJson);
@@ -81,9 +83,13 @@ export const SightingsMap = ({
         return;
       }
 
+      // Use theme-appropriate map style
+      const mapStyleUrl =
+        effectiveTheme === "dark" ? "/map-style-dark.json" : config.mapStyleUrl;
+
       const map = new maplibre.Map({
         container: containerRef.current,
-        style: config.mapStyleUrl,
+        style: mapStyleUrl,
         center: [-98.5795, 39.8283],
         zoom: 4,
         pitch: 0,
@@ -192,7 +198,6 @@ export const SightingsMap = ({
 
         map.on("error", (event) => {
           if (event.error) {
-            // eslint-disable-next-line no-console
             console.error("Map error:", event.error);
           }
         });
@@ -209,7 +214,118 @@ export const SightingsMap = ({
       mapInstance?.remove();
       mapRef.current = null;
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Update map style when theme changes
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map) return;
+
+    const mapStyleUrl =
+      effectiveTheme === "dark" ? "/map-style-dark.json" : config.mapStyleUrl;
+
+    // Get current center and zoom to preserve view
+    const center = map.getCenter();
+    const zoom = map.getZoom();
+    const pitch = map.getPitch();
+
+    map.setStyle(mapStyleUrl);
+
+    // Re-add layers after style loads
+    map.once("styledata", () => {
+      // Restore view
+      map.setCenter(center);
+      map.setZoom(zoom);
+      map.setPitch(pitch);
+
+      // Re-add sightings source and layers
+      if (!map.getSource("sightings")) {
+        map.addSource("sightings", {
+          type: "geojson",
+          data: geoJsonRef.current,
+        });
+
+        map.addLayer({
+          id: "sightings-glow",
+          type: "circle",
+          source: "sightings",
+          paint: {
+            "circle-radius": 16,
+            "circle-color": "#f2c94c",
+            "circle-opacity": 0.2,
+          },
+        });
+
+        map.addLayer({
+          id: "sightings",
+          type: "circle",
+          source: "sightings",
+          paint: {
+            "circle-radius": 7,
+            "circle-color": [
+              "match",
+              ["get", "importance"],
+              "critical",
+              "#f06449",
+              "high",
+              "#f2c94c",
+              "low",
+              "#1f6f5b",
+              "#3a86ff",
+            ],
+            "circle-stroke-width": 2,
+            "circle-stroke-color": "#0c1a24",
+          },
+        });
+      }
+
+      // Re-add geofence layer if it exists
+      if (selectedGeofence && !map.getSource("selected-geofence")) {
+        const points = selectedGeofence.polygon.points;
+        const geofenceGeoJson = {
+          type: "Feature" as const,
+          properties: {
+            name: selectedGeofence.name,
+          },
+          geometry: {
+            type: "Polygon" as const,
+            coordinates: [
+              [
+                ...points.map((p) => [p.lng, p.lat]),
+                [points[0].lng, points[0].lat],
+              ],
+            ],
+          },
+        };
+
+        map.addSource("selected-geofence", {
+          type: "geojson",
+          data: geofenceGeoJson,
+        });
+
+        map.addLayer({
+          id: "selected-geofence-fill",
+          type: "fill",
+          source: "selected-geofence",
+          paint: {
+            "fill-color": "#f2c94c",
+            "fill-opacity": 0.15,
+          },
+        });
+
+        map.addLayer({
+          id: "selected-geofence-outline",
+          type: "line",
+          source: "selected-geofence",
+          paint: {
+            "line-color": "#f2c94c",
+            "line-width": 3,
+          },
+        });
+      }
+    });
+  }, [effectiveTheme, selectedGeofence]);
 
   useEffect(() => {
     const map = mapRef.current;
