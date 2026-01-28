@@ -60,3 +60,6 @@ tmpclaude-*
 # MCP and Serena plugin directories
 .playwright-mcp/
 .serena/
+
+.vercel
+.env*.local
