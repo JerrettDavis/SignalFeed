@@ -35,8 +35,8 @@ Thank you for your interest in contributing to SightSignal! We welcome contribut
 Before starting work, sync your fork with upstream:
 ```bash
 git fetch upstream
-git checkout master
-git merge upstream/master
+git checkout main
+git merge upstream/main
 ```
 
 ## Development Setup

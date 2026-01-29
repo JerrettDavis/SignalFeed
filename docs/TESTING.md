@@ -205,7 +205,7 @@ Our E2E tests cover:
 
 The CI/CD pipeline runs on:
 
-- Push to `main`, `master`, or `develop` branches
+- Push to `main` or `develop` branches
 - Pull requests to these branches
 
 ### Pipeline Stages
