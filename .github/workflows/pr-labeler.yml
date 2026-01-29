@@ -14,10 +14,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
-        uses: actions/checkout@v6
+        uses: actions/checkout@v4
 
       - name: Label by file paths
-        uses: actions/labeler@v6
+        uses: actions/labeler@v4
         with:
           configuration-path: .github/labeler.yml
 
