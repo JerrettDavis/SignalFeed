@@ -1,4 +1,3 @@
-import path from "node:path";
 import { defineConfig } from "@playwright/test";
 
 const baseUrl = "http://127.0.0.1:3000";

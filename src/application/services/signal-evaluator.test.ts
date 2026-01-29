@@ -15,16 +15,20 @@ import {
   type SignalEvent,
   type EvaluationContext,
 } from "./signal-evaluator";
-import type { Signal, SignalTarget } from "@/domain/signals/signal";
-import type { Sighting } from "@/domain/sightings/sighting";
-import type { Geofence } from "@/domain/geofences/geofence";
-import type { SightingType } from "@/domain/taxonomy/taxonomy";
+import type { Signal, SignalTarget, SignalId } from "@/domain/signals/signal";
+import type { Sighting, SightingId } from "@/domain/sightings/sighting";
+import type { Geofence, GeofenceId } from "@/domain/geofences/geofence";
+import type {
+  SightingType,
+  SightingTypeId,
+  CategoryId,
+} from "@/domain/taxonomy/taxonomy";
 
 // Test data factories
 const createTestSighting = (overrides?: Partial<Sighting>): Sighting => ({
-  id: "sighting-1" as any,
-  typeId: "type-police-patrol" as any,
-  categoryId: "cat-law-enforcement" as any,
+  id: "sighting-1" as SightingId,
+  typeId: "type-police-patrol" as SightingTypeId,
+  categoryId: "cat-law-enforcement" as CategoryId,
   location: { lat: 36.1539, lng: -95.9925 }, // Tulsa, OK
   description: "Police patrol observed",
   importance: "normal",
@@ -44,7 +48,7 @@ const createTestSighting = (overrides?: Partial<Sighting>): Sighting => ({
 });
 
 const createTestSignal = (overrides?: Partial<Signal>): Signal => ({
-  id: "signal-1" as any,
+  id: "signal-1" as SignalId,
   name: "Tulsa Police Activity",
   description: "Police activity in Tulsa",
   ownerId: "owner-1",
@@ -60,7 +64,7 @@ const createTestSignal = (overrides?: Partial<Signal>): Signal => ({
 });
 
 const createTestGeofence = (id: string): Geofence => ({
-  id: id as any,
+  id: id as GeofenceId,
   name: "Tulsa",
   polygon: {
     points: [
@@ -78,9 +82,9 @@ const createTestContext = (): EvaluationContext => {
   const geofence = createTestGeofence("geofence-tulsa");
 
   const sightingType: SightingType = {
-    id: "type-police-patrol" as any,
+    id: "type-police-patrol" as SightingTypeId,
     label: "Police Patrol",
-    categoryId: "cat-law-enforcement" as any,
+    categoryId: "cat-law-enforcement" as CategoryId,
     tags: ["routine", "law-enforcement"],
     icon: "🚓",
   };
@@ -194,7 +198,7 @@ describe("signal-evaluator", () => {
         },
       });
       const sighting = createTestSighting({
-        categoryId: "cat-law-enforcement" as any,
+        categoryId: "cat-law-enforcement" as CategoryId,
       });
       const context = createTestContext();
 
@@ -208,7 +212,7 @@ describe("signal-evaluator", () => {
         },
       });
       const sighting = createTestSighting({
-        categoryId: "cat-law-enforcement" as any,
+        categoryId: "cat-law-enforcement" as CategoryId,
       });
       const context = createTestContext();
 
@@ -222,7 +226,7 @@ describe("signal-evaluator", () => {
         },
       });
       const sighting = createTestSighting({
-        typeId: "type-police-patrol" as any,
+        typeId: "type-police-patrol" as SightingTypeId,
       });
       const context = createTestContext();
 
@@ -307,7 +311,7 @@ describe("signal-evaluator", () => {
         },
       });
       const sighting = createTestSighting({
-        typeId: "type-police-patrol" as any, // Has tags: ["routine", "law-enforcement"]
+        typeId: "type-police-patrol" as SightingTypeId, // Has tags: ["routine", "law-enforcement"]
       });
       const context = createTestContext();
 
@@ -324,7 +328,7 @@ describe("signal-evaluator", () => {
         },
       });
       const sighting = createTestSighting({
-        categoryId: "cat-law-enforcement" as any,
+        categoryId: "cat-law-enforcement" as CategoryId,
         importance: "normal",
         score: 9,
       });
@@ -343,7 +347,7 @@ describe("signal-evaluator", () => {
         },
       });
       const sighting = createTestSighting({
-        categoryId: "cat-law-enforcement" as any,
+        categoryId: "cat-law-enforcement" as CategoryId,
         importance: "normal",
         score: 9,
       });
@@ -356,16 +360,16 @@ describe("signal-evaluator", () => {
   describe("evaluateSighting", () => {
     it("should return matching signals", () => {
       const signal1 = createTestSignal({
-        id: "signal-1" as any,
+        id: "signal-1" as SightingId,
         conditions: { categoryIds: ["cat-law-enforcement"] },
       });
       const signal2 = createTestSignal({
-        id: "signal-2" as any,
+        id: "signal-2" as SightingId,
         conditions: { categoryIds: ["cat-wildlife"] },
       });
 
       const sighting = createTestSighting({
-        categoryId: "cat-law-enforcement" as any,
+        categoryId: "cat-law-enforcement" as CategoryId,
       });
       const event: SignalEvent = { type: "new_sighting", sighting };
       const context = createTestContext();
@@ -488,7 +492,7 @@ describe("signal-evaluator", () => {
         conditions: { categoryIds: ["cat-law-enforcement"] },
       });
       const sighting = createTestSighting({
-        categoryId: "cat-law-enforcement" as any,
+        categoryId: "cat-law-enforcement" as CategoryId,
       });
       const context = createTestContext();
 
@@ -504,16 +508,16 @@ describe("signal-evaluator", () => {
       });
 
       const sighting1 = createTestSighting({
-        id: "sighting-1" as any,
-        categoryId: "cat-law-enforcement" as any,
+        id: "sighting-1" as SightingId,
+        categoryId: "cat-law-enforcement" as CategoryId,
       });
       const sighting2 = createTestSighting({
-        id: "sighting-2" as any,
-        categoryId: "cat-wildlife" as any,
+        id: "sighting-2" as SightingId,
+        categoryId: "cat-wildlife" as CategoryId,
       });
       const sighting3 = createTestSighting({
-        id: "sighting-3" as any,
-        categoryId: "cat-law-enforcement" as any,
+        id: "sighting-3" as SightingId,
+        categoryId: "cat-law-enforcement" as CategoryId,
       });
 
       const context = createTestContext();
@@ -545,15 +549,15 @@ describe("signal-evaluator", () => {
   describe("findScoreThresholdSignals", () => {
     it("should return signals with score_threshold trigger", () => {
       const signal1 = createTestSignal({
-        id: "signal-1" as any,
+        id: "signal-1" as SightingId,
         triggers: ["new_sighting", "score_threshold"],
       });
       const signal2 = createTestSignal({
-        id: "signal-2" as any,
+        id: "signal-2" as SightingId,
         triggers: ["new_sighting"],
       });
       const signal3 = createTestSignal({
-        id: "signal-3" as any,
+        id: "signal-3" as SightingId,
         triggers: ["score_threshold"],
       });
 
@@ -643,7 +647,7 @@ describe("signal-evaluator", () => {
         },
       });
       const sighting = createTestSighting({
-        categoryId: "cat-law-enforcement" as any,
+        categoryId: "cat-law-enforcement" as CategoryId,
       });
       const event: SignalEvent = { type: "new_sighting", sighting };
 
@@ -660,7 +664,7 @@ describe("signal-evaluator", () => {
         },
       });
       const sighting = createTestSighting({
-        categoryId: "cat-law-enforcement" as any,
+        categoryId: "cat-law-enforcement" as CategoryId,
       });
       const event: SignalEvent = { type: "new_sighting", sighting };
 
@@ -690,7 +694,7 @@ describe("signal-evaluator", () => {
         conditions: { categoryIds: ["cat-law-enforcement"] },
       });
       const sighting = createTestSighting({
-        categoryId: "cat-law-enforcement" as any,
+        categoryId: "cat-law-enforcement" as CategoryId,
       });
 
       const score1 = calculateMatchScore(signal1, sighting);
@@ -707,8 +711,8 @@ describe("signal-evaluator", () => {
         conditions: { typeIds: ["type-police-patrol"] },
       });
       const sighting = createTestSighting({
-        categoryId: "cat-law-enforcement" as any,
-        typeId: "type-police-patrol" as any,
+        categoryId: "cat-law-enforcement" as CategoryId,
+        typeId: "type-police-patrol" as SightingTypeId,
       });
 
       const score1 = calculateMatchScore(signal1, sighting);
@@ -726,11 +730,12 @@ describe("signal-evaluator", () => {
           minScore: 5,
           maxScore: 20,
         },
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         target: { kind: "polygon", polygon: { points: [] } } as any,
       });
       const sighting = createTestSighting({
-        categoryId: "cat-law-enforcement" as any,
-        typeId: "type-police-patrol" as any,
+        categoryId: "cat-law-enforcement" as CategoryId,
+        typeId: "type-police-patrol" as SightingTypeId,
         importance: "normal",
         score: 10,
       });
@@ -745,9 +750,9 @@ describe("signal-evaluator", () => {
     it("should build context from repository data", () => {
       const geofence = createTestGeofence("geofence-1");
       const sightingType: SightingType = {
-        id: "type-1" as any,
+        id: "type-1" as SightingId,
         label: "Test Type",
-        categoryId: "cat-1" as any,
+        categoryId: "cat-1" as CategoryId,
         tags: ["test"],
       };
 
