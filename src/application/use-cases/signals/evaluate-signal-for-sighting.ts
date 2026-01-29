@@ -5,6 +5,7 @@ import {
 } from "@/domain/signals/signal";
 import { getReputationTier, type UserId } from "@/domain/reputation/reputation";
 import type { SightingId } from "@/domain/sightings/sighting";
+import type { GeofenceId } from "@/domain/geofences/geofence";
 import type { GeofenceRepository } from "@/ports/geofence-repository";
 import type { ReputationRepository } from "@/ports/reputation-repository";
 import type { SignalRepository } from "@/ports/signal-repository";
@@ -102,7 +103,7 @@ export const buildEvaluateSignalForSighting = ({
         geoMatch = isPointInPolygon(sighting.location, signal.target.polygon);
       } else if (signal.target.kind === "geofence") {
         const geofence = await geofenceRepository.getById(
-          signal.target.geofenceId
+          signal.target.geofenceId as GeofenceId
         );
         if (geofence) {
           geoMatch = isPointInPolygon(sighting.location, geofence.polygon);
