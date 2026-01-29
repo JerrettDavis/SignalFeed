@@ -4,6 +4,14 @@ on:
   push:
     branches: [main]
 
+# Test concurrency block
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  NODE_VERSION: '20.x'
+
 jobs:
   test:
     name: Simple Test
