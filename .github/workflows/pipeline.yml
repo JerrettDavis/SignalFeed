@@ -37,7 +37,7 @@ jobs:
       - name: Run type check
         run: npm run typecheck
 
-  # Unit Tests with Coverage
+
   unit-tests:
     name: Unit Tests with Coverage
     runs-on: ubuntu-latest
@@ -80,7 +80,7 @@ jobs:
           cat coverage/coverage-summary.txt || echo "No summary available"
           echo '```' >> $GITHUB_STEP_SUMMARY
 
-  # E2E Tests with File Storage
+
   e2e-file:
     name: E2E Tests (File Storage)
     runs-on: ubuntu-latest
@@ -117,7 +117,7 @@ jobs:
           path: playwright-report/
           retention-days: 30
 
-  # E2E Tests with PostgreSQL
+
   e2e-postgres:
     name: E2E Tests (PostgreSQL)
     runs-on: ubuntu-latest
@@ -183,7 +183,7 @@ jobs:
           path: playwright-report/
           retention-days: 30
 
-  # Build Test
+
   build:
     name: Build Application
     runs-on: ubuntu-latest
@@ -215,7 +215,7 @@ jobs:
           path: .next/
           retention-days: 7
 
-  # Security Audit
+
   security:
     name: Security Audit
     runs-on: ubuntu-latest
@@ -233,7 +233,7 @@ jobs:
         run: npm audit --audit-level=moderate
         continue-on-error: true
 
-  # Test Summary
+
   test-summary:
     name: Test Summary
     runs-on: ubuntu-latest
