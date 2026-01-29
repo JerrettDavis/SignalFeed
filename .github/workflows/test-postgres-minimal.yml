@@ -1,0 +1,26 @@
+name: Test Postgres Minimal
+
+on:
+  push:
+    branches: [main]
+
+env:
+  POSTGRES_IMAGE: postgres:16-alpine
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: ${{ env.POSTGRES_IMAGE }}
+        env:
+          POSTGRES_USER: test
+          POSTGRES_PASSWORD: test
+          POSTGRES_DB: test
+        ports:
+          - 5432:5432
+
+    steps:
+      - name: Test
+        run: echo "Test"
