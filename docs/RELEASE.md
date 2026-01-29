@@ -111,8 +111,8 @@ Follow these steps for a standard release:
 
 2. **Pull latest changes**
    ```bash
-   git checkout master
-   git pull origin master
+   git checkout main
+   git pull origin main
    ```
 
 3. **Run quality checks**
@@ -143,7 +143,7 @@ Follow these steps for a standard release:
 
 6. **Push to GitHub**
    ```bash
-   git push --follow-tags origin master
+   git push --follow-tags origin main
    ```
 
 7. **Monitor the release workflow**
@@ -232,8 +232,8 @@ For critical bug fixes that need immediate release:
    git push origin hotfix/critical-bug --follow-tags
    ```
 
-5. **Create pull request to master**
-   - Merge the hotfix back to master
+5. **Create pull request to main**
+   - Merge the hotfix back to main
    - Delete the hotfix branch
 
 ## Pre-release Versions
@@ -295,7 +295,7 @@ The automated release workflow (`.github/workflows/release.yml`) performs:
 
 The workflow is triggered by pushing a tag:
 ```bash
-git push --tags origin master
+git push --tags origin main
 ```
 
 Tag format must be: `v*.*.*` (e.g., `v1.2.3`, `v0.1.0-beta.1`)
@@ -324,7 +324,7 @@ git push origin :refs/tags/v1.2.3
 Then recreate it:
 ```bash
 npm run release
-git push --follow-tags origin master
+git push --follow-tags origin main
 ```
 
 ### Problem: Release workflow failed
@@ -346,7 +346,7 @@ git add CHANGELOG.md
 git commit --amend --no-edit
 git tag -d v1.2.3
 git tag v1.2.3
-git push --follow-tags origin master
+git push --follow-tags origin main
 ```
 
 ## Best Practices
