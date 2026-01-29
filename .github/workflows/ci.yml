@@ -12,7 +12,6 @@ concurrency:
 
 env:
   NODE_VERSION: '20.x'
-  POSTGRES_IMAGE: postgres:16-alpine
 
 jobs:
   lint:
@@ -98,7 +97,7 @@ jobs:
 
     services:
       postgres:
-        image: ${{ env.POSTGRES_IMAGE }}
+        image: postgres:16-alpine
         env:
           POSTGRES_USER: sightsignal_test
           POSTGRES_PASSWORD: sightsignal_test
