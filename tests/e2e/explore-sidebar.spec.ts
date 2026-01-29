@@ -48,10 +48,9 @@ test.describe("Explore Sidebar", () => {
       return;
     }
 
-    // Click Nature category (use force to handle sidebar scroll issues)
-    await page
-      .getByRole("button", { name: "Nature", exact: true })
-      .click({ force: true });
+    // Click Nature category (use JS click to handle sidebar scroll container)
+    const natureBtn = page.getByRole("button", { name: "Nature", exact: true });
+    await natureBtn.evaluate((el) => (el as HTMLElement).click());
 
     // Verify button shows selected state (blue background)
     const natureButton = page.getByRole("button", {
@@ -85,20 +84,24 @@ test.describe("Explore Sidebar", () => {
       return;
     }
 
-    // Select Nature (use force to handle sidebar scroll issues)
-    await page
-      .getByRole("button", { name: "Nature", exact: true })
-      .click({ force: true });
+    // Select Nature (use JS click to handle sidebar scroll container)
+    const natureBtn1 = page.getByRole("button", {
+      name: "Nature",
+      exact: true,
+    });
+    await natureBtn1.evaluate((el) => (el as HTMLElement).click());
     const afterNature = await page
       .locator("text=/\\d+ found/")
       .first()
       .textContent();
     const countAfterNature = parseInt(afterNature?.match(/\d+/)?.[0] || "0");
 
-    // Select Community (use force to handle sidebar scroll issues)
-    await page
-      .getByRole("button", { name: "Community", exact: true })
-      .click({ force: true });
+    // Select Community (use JS click to handle sidebar scroll container)
+    const communityBtn = page.getByRole("button", {
+      name: "Community",
+      exact: true,
+    });
+    await communityBtn.evaluate((el) => (el as HTMLElement).click());
     const afterCommunity = await page
       .locator("text=/\\d+ found/")
       .first()
@@ -120,18 +123,18 @@ test.describe("Explore Sidebar", () => {
   });
 
   test("toggles category filter off", async ({ page }) => {
-    // Select a category (use force to handle sidebar scroll issues)
-    await page
-      .getByRole("button", { name: "Nature", exact: true })
-      .click({ force: true });
+    // Select a category (use JS click to handle sidebar scroll container)
+    const natureBtn2 = page.getByRole("button", {
+      name: "Nature",
+      exact: true,
+    });
+    await natureBtn2.evaluate((el) => (el as HTMLElement).click());
     await expect(
       page.getByRole("button", { name: "Nature", exact: true })
     ).toHaveClass(/bg-\[color:var\(--accent-primary\)\]/);
 
-    // Click again to deselect (use force to handle sidebar scroll issues)
-    await page
-      .getByRole("button", { name: "Nature", exact: true })
-      .click({ force: true });
+    // Click again to deselect (use JS click to handle sidebar scroll container)
+    await natureBtn2.evaluate((el) => (el as HTMLElement).click());
     await expect(
       page.getByRole("button", { name: "Nature", exact: true })
     ).not.toHaveClass(/bg-\[color:var\(--accent-primary\)\]/);
@@ -179,10 +182,12 @@ test.describe("Explore Sidebar", () => {
       return;
     }
 
-    // Select category (use force to handle sidebar scroll issues)
-    await page
-      .getByRole("button", { name: "Nature", exact: true })
-      .click({ force: true });
+    // Select category (use JS click to handle sidebar scroll container)
+    const natureBtn3 = page.getByRole("button", {
+      name: "Nature",
+      exact: true,
+    });
+    await natureBtn3.evaluate((el) => (el as HTMLElement).click());
 
     // Select importance
     const importanceSelect = page
@@ -213,10 +218,12 @@ test.describe("Explore Sidebar", () => {
       return;
     }
 
-    // Apply some filters (use force to handle sidebar scroll issues)
-    await page
-      .getByRole("button", { name: "Nature", exact: true })
-      .click({ force: true });
+    // Apply some filters (use JS click to handle sidebar scroll container)
+    const natureBtn4 = page.getByRole("button", {
+      name: "Nature",
+      exact: true,
+    });
+    await natureBtn4.evaluate((el) => (el as HTMLElement).click());
     const importanceSelect = page
       .locator("select")
       .filter({ hasText: /All levels/ });
