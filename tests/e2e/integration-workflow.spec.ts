@@ -245,7 +245,9 @@ test.describe("Integration Workflow", () => {
     await responsePromise;
 
     // Verify custom field was sent
-    expect(capturedRequestBody.fields).toEqual({ organizer: "Test Org" });
+    expect(
+      (capturedRequestBody as { fields: Record<string, string> }).fields
+    ).toEqual({ organizer: "Test Org" });
   });
 
   test("workflow: multiple reports in sequence", async ({ page }) => {
@@ -346,7 +348,7 @@ test.describe("Integration Workflow", () => {
     // Navigate through sidebars
     await page.getByRole("button", { name: "Explore", exact: true }).click();
     await page.waitForTimeout(300);
-    await expect(html).toHaveAttribute("data-theme", selectedTheme);
+    await expect(html).toHaveAttribute("data-theme", selectedTheme!);
 
     const closeButton4 = page
       .getByRole("button", { name: "Close sidebar" })
@@ -358,7 +360,7 @@ test.describe("Integration Workflow", () => {
       .first()
       .click();
     await page.waitForTimeout(300);
-    await expect(html).toHaveAttribute("data-theme", selectedTheme);
+    await expect(html).toHaveAttribute("data-theme", selectedTheme!);
 
     const closeButton5 = page
       .getByRole("button", { name: "Close sidebar" })
@@ -367,6 +369,6 @@ test.describe("Integration Workflow", () => {
     await page.waitForTimeout(300);
     await page.getByRole("button", { name: "Geofences", exact: true }).click();
     await page.waitForTimeout(300);
-    await expect(html).toHaveAttribute("data-theme", selectedTheme);
+    await expect(html).toHaveAttribute("data-theme", selectedTheme!);
   });
 });

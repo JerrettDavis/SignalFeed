@@ -2,6 +2,8 @@ import { err, ok, type DomainError, type Result } from "@/shared/result";
 import type { SightingId } from "./sighting";
 import type { UserId } from "../reputation/reputation";
 
+export type { SightingId };
+
 export type SightingReactionType =
   | "upvote"
   | "downvote"
