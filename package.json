@@ -11,6 +11,7 @@
     "format:check": "prettier --check \"**/*.{js,jsx,ts,tsx,json,css,md}\"",
     "test": "vitest run",
     "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
     "typecheck": "tsc --noEmit",
     "e2e": "playwright test",
     "e2e:postgres": "playwright test --config=playwright.config.postgres.ts",
