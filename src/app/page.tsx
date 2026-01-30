@@ -336,8 +336,8 @@ export default function Home() {
         <aside
           className={`
             fixed md:relative
-            left-0 top-[60px] md:top-auto bottom-0 md:bottom-auto
-            md:h-full
+            left-0 top-[60px] md:top-auto
+            h-[calc(100vh-60px)] md:h-full
             w-full sm:w-96
             md:w-96
             border-r border-[color:var(--border)]
