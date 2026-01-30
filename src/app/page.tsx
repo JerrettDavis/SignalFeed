@@ -337,7 +337,8 @@ export default function Home() {
           className={`
             fixed md:relative
             left-0 top-[60px] md:top-auto
-            h-[calc(100vh-60px)] md:h-auto md:self-stretch
+            h-[calc(100vh-60px)]
+            md:flex-1
             w-full sm:w-96
             md:w-96
             border-r border-[color:var(--border)]
