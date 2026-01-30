@@ -342,7 +342,8 @@ export default function Home() {
             border-r border-[color:var(--border)]
             bg-[color:var(--surface-elevated)]
             flex flex-col overflow-hidden
-            z-50 md:z-auto
+            isolate
+            z-50 md:z-10
             transform transition-transform duration-300 ease-out
             ${mobileSidebarOpen ? "translate-x-0" : "-translate-x-full"}
             md:translate-x-0
@@ -526,7 +527,7 @@ export default function Home() {
         </aside>
 
         {/* Map Area */}
-        <div className="relative flex-1 overflow-hidden z-0">
+        <div className="relative flex-1 overflow-hidden isolate z-0">
           <ClientSightingsExplorer />
 
           {/* Welcome Card - Dismissable wizard */}

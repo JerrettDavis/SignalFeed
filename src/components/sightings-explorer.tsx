@@ -145,7 +145,7 @@ export const SightingsExplorer = () => {
   }, []);
 
   return (
-    <div className="absolute inset-0">
+    <div className="absolute inset-0 z-0">
       <SightingsMap
         sightings={sightings}
         selectedGeofence={selectedGeofence}
