@@ -326,7 +326,7 @@ export default function Home() {
         {/* Mobile Backdrop */}
         {mobileSidebarOpen && (
           <div
-            className="md:hidden fixed inset-0 bg-black/20 z-40 transition-opacity"
+            className="md:hidden fixed inset-0 top-[60px] bg-black/20 z-40 transition-opacity"
             onClick={closeMobileSidebar}
             aria-hidden="true"
           />
@@ -526,7 +526,7 @@ export default function Home() {
         </aside>
 
         {/* Map Area */}
-        <div className="relative flex-1 overflow-hidden">
+        <div className="relative flex-1 overflow-hidden z-0">
           <ClientSightingsExplorer />
 
           {/* Welcome Card - Dismissable wizard */}
