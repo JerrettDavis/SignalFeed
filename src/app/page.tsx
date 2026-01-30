@@ -308,77 +308,6 @@ export default function Home() {
 
       {/* Main Content - Map + Fixed Sidebar */}
       <main className="flex flex-1 overflow-hidden">
-        {/* Map Area */}
-        <div className="relative flex-1 overflow-hidden">
-          <ClientSightingsExplorer />
-
-          {/* Mobile Sidebar Toggle Button */}
-          <button
-            onClick={() => setMobileSidebarOpen(true)}
-            className="md:hidden fixed bottom-6 right-6 flex h-14 w-14 items-center justify-center rounded-full bg-[color:var(--accent-primary)] text-white shadow-[var(--shadow-lg)] hover:bg-[color:var(--accent-hover)] transition z-20"
-            aria-label="Open sidebar"
-          >
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              width="24"
-              height="24"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            >
-              <path d="M3 12h18" />
-              <path d="M3 6h18" />
-              <path d="M3 18h18" />
-            </svg>
-          </button>
-
-          {/* Welcome Card - Dismissable wizard */}
-          {showWelcome && (
-            <div className="absolute left-4 top-4 max-w-sm rounded-xl bg-[color:var(--surface-elevated)] p-4 shadow-[var(--shadow-md)] z-10 border border-[color:var(--border)]">
-              <div className="flex items-start justify-between gap-2">
-                <h2 className="text-base font-semibold text-[color:var(--text-primary)]">
-                  Welcome to SightSignal
-                </h2>
-                <button
-                  onClick={dismissWelcome}
-                  className="flex-shrink-0 flex h-6 w-6 items-center justify-center rounded text-[color:var(--text-tertiary)] hover:bg-[color:var(--surface)] hover:text-[color:var(--text-primary)] transition"
-                  title="Dismiss"
-                >
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    width="16"
-                    height="16"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  >
-                    <path d="M18 6 6 18" />
-                    <path d="m6 6 12 12" />
-                  </svg>
-                </button>
-              </div>
-              <p className="mt-2 text-sm text-[color:var(--text-secondary)]">
-                Share and track local sightings, events, and hazards. Use the
-                sidebar to explore signals or report new ones.
-              </p>
-              <div className="mt-3 flex gap-2">
-                <button
-                  onClick={dismissWelcome}
-                  className="rounded-lg bg-[color:var(--accent-primary)] px-4 py-2 text-sm font-medium text-white hover:bg-[color:var(--accent-hover)] transition"
-                >
-                  Got it
-                </button>
-              </div>
-            </div>
-          )}
-        </div>
-
         {/* Mobile Backdrop */}
         {mobileSidebarOpen && (
           <div
@@ -388,19 +317,19 @@ export default function Home() {
           />
         )}
 
-        {/* Fixed Right Sidebar - Responsive */}
+        {/* Fixed Left Sidebar - Responsive */}
         <aside
           className={`
             fixed md:relative
-            right-0 top-0 bottom-0
+            left-0 top-0 bottom-0
             w-full sm:w-96
             md:w-96
-            border-l border-[color:var(--border)]
+            border-r border-[color:var(--border)]
             bg-[color:var(--surface-elevated)]
             flex flex-col overflow-hidden
             z-50 md:z-auto
             transform transition-transform duration-300 ease-out
-            ${mobileSidebarOpen ? "translate-x-0" : "translate-x-full"}
+            ${mobileSidebarOpen ? "translate-x-0" : "-translate-x-full"}
             md:translate-x-0
           `}
         >
@@ -580,6 +509,77 @@ export default function Home() {
             )}
           </div>
         </aside>
+
+        {/* Map Area */}
+        <div className="relative flex-1 overflow-hidden">
+          <ClientSightingsExplorer />
+
+          {/* Mobile Sidebar Toggle Button */}
+          <button
+            onClick={() => setMobileSidebarOpen(true)}
+            className="md:hidden fixed bottom-6 left-6 flex h-14 w-14 items-center justify-center rounded-full bg-[color:var(--accent-primary)] text-white shadow-[var(--shadow-lg)] hover:bg-[color:var(--accent-hover)] transition z-20"
+            aria-label="Open sidebar"
+          >
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="24"
+              height="24"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <path d="M3 12h18" />
+              <path d="M3 6h18" />
+              <path d="M3 18h18" />
+            </svg>
+          </button>
+
+          {/* Welcome Card - Dismissable wizard */}
+          {showWelcome && (
+            <div className="absolute right-4 top-4 max-w-sm rounded-xl bg-[color:var(--surface-elevated)] p-4 shadow-[var(--shadow-md)] z-10 border border-[color:var(--border)]">
+              <div className="flex items-start justify-between gap-2">
+                <h2 className="text-base font-semibold text-[color:var(--text-primary)]">
+                  Welcome to SightSignal
+                </h2>
+                <button
+                  onClick={dismissWelcome}
+                  className="flex-shrink-0 flex h-6 w-6 items-center justify-center rounded text-[color:var(--text-tertiary)] hover:bg-[color:var(--surface)] hover:text-[color:var(--text-primary)] transition"
+                  title="Dismiss"
+                >
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    width="16"
+                    height="16"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
+                    <path d="M18 6 6 18" />
+                    <path d="m6 6 12 12" />
+                  </svg>
+                </button>
+              </div>
+              <p className="mt-2 text-sm text-[color:var(--text-secondary)]">
+                Share and track local sightings, events, and hazards. Use the
+                sidebar to explore signals or report new ones.
+              </p>
+              <div className="mt-3 flex gap-2">
+                <button
+                  onClick={dismissWelcome}
+                  className="rounded-lg bg-[color:var(--accent-primary)] px-4 py-2 text-sm font-medium text-white hover:bg-[color:var(--accent-hover)] transition"
+                >
+                  Got it
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
       </main>
     </div>
   );
