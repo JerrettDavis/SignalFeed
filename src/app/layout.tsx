@@ -20,7 +20,6 @@ export const metadata: Metadata = {
   title: "SightSignal",
   description: "Map-first signals for local sightings, events, and hazards.",
   manifest: "/manifest.json",
-  themeColor: "#0078ff",
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",
@@ -30,6 +29,10 @@ export const metadata: Metadata = {
     icon: "/favicon.png",
     apple: "/icon-192.png",
   },
+};
+
+export const viewport = {
+  themeColor: "#0078ff",
 };
 
 export default function RootLayout({
