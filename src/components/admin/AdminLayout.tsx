@@ -72,14 +72,22 @@ export function AdminLayout({ children }: AdminLayoutProps) {
               </div>
             </div>
 
-            {/* Logout Button */}
-            <button
-              onClick={handleLogout}
-              disabled={isLoggingOut}
-              className="rounded-lg border border-[color:var(--border)] bg-[color:var(--surface)] px-4 py-2 text-sm font-medium text-[color:var(--text-primary)] hover:bg-[color:var(--surface-elevated)] disabled:opacity-50 disabled:cursor-not-allowed transition"
-            >
-              {isLoggingOut ? "Logging out..." : "Logout"}
-            </button>
+            {/* Actions */}
+            <div className="flex items-center gap-3">
+              <button
+                onClick={() => router.push("/")}
+                className="rounded-lg border border-[color:var(--border)] bg-[color:var(--surface)] px-4 py-2 text-sm font-medium text-[color:var(--text-primary)] hover:bg-[color:var(--surface-elevated)] transition"
+              >
+                🏠 Back to Map
+              </button>
+              <button
+                onClick={handleLogout}
+                disabled={isLoggingOut}
+                className="rounded-lg border border-[color:var(--border)] bg-[color:var(--surface)] px-4 py-2 text-sm font-medium text-[color:var(--text-primary)] hover:bg-[color:var(--surface-elevated)] disabled:opacity-50 disabled:cursor-not-allowed transition"
+              >
+                {isLoggingOut ? "Logging out..." : "Logout"}
+              </button>
+            </div>
           </div>
 
           {/* Navigation Tabs */}

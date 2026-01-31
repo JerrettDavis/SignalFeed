@@ -33,10 +33,16 @@ export const GET = async (request: Request) => {
       return jsonUnauthorized("Invalid or expired token");
     }
 
-    // Get user
-    const user = await userRepo.getByEmail(email);
+    // Get or create user
+    let user = await userRepo.getByEmail(email);
     if (!user) {
-      return jsonServerError("User not found");
+      // Create new user
+      user = await userRepo.create({
+        email,
+        username: email.split("@")[0], // Use email prefix as default username
+        role: "user",
+        status: "active",
+      });
     }
 
     // Delete used token
