@@ -233,8 +233,8 @@ export default function Home() {
 
   return (
     <div className="fixed inset-0 flex flex-col bg-[color:var(--background)]">
-      <PushNotificationManager 
-        isLoggedIn={isLoggedIn} 
+      <PushNotificationManager
+        isLoggedIn={isLoggedIn}
         userId={userId}
         onSubscriptionChange={setNotificationsEnabled}
       />
@@ -265,6 +265,7 @@ export default function Home() {
           </button>
 
           <div className="flex h-8 w-8 items-center justify-center rounded-lg overflow-hidden">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src="/jdh-logo.png"
               alt="SightSignal Logo"
