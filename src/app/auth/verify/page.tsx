@@ -1,19 +1,20 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 
-export default function VerifyPage() {
+function VerifyContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const [status, setStatus] = useState<"verifying" | "success" | "error">("verifying");
+  const [status, setStatus] = useState<"verifying" | "success" | "error">(
+    "verifying"
+  );
   const [message, setMessage] = useState("Verifying your magic link...");
 
   useEffect(() => {
     const token = searchParams.get("token");
-    
+
     if (!token) {
-      // Use setTimeout to avoid setState during render
       setTimeout(() => {
         setStatus("error");
         setMessage("No token provided");
@@ -24,7 +25,7 @@ export default function VerifyPage() {
     const verify = async () => {
       try {
         const response = await fetch(`/api/auth/verify?token=${token}`);
-        
+
         if (response.ok) {
           setStatus("success");
           setMessage("Successfully logged in! Redirecting...");
@@ -38,7 +39,8 @@ export default function VerifyPage() {
         }
       } catch (error) {
         setStatus("error");
-        setMessage("Failed to verify link");
+        setMessage("Verification failed. Please try again.");
+        console.error("Verification error:", error);
       }
     };
 
@@ -46,44 +48,93 @@ export default function VerifyPage() {
   }, [searchParams, router]);
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-[color:var(--background)] p-4">
-      <div className="w-full max-w-md rounded-2xl border border-[color:var(--border)] bg-[color:var(--surface)] p-8 text-center shadow-2xl">
-        {status === "verifying" && (
-          <>
-            <div className="mx-auto mb-4 h-12 w-12 animate-spin rounded-full border-4 border-[color:var(--border)] border-t-[color:var(--accent-primary)]" />
-            <h1 className="text-xl font-semibold text-[color:var(--text-primary)]">{message}</h1>
-          </>
-        )}
-
-        {status === "success" && (
-          <>
-            <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-[color:var(--accent-success)]/10">
-              <svg className="h-6 w-6 text-[color:var(--accent-success)]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+    <div className="flex min-h-screen flex-col items-center justify-center bg-[color:var(--background)] p-6">
+      <div className="w-full max-w-md space-y-6 text-center">
+        <div className="flex justify-center">
+          {status === "verifying" && (
+            <div className="flex h-16 w-16 items-center justify-center rounded-full bg-[color:var(--accent-primary)]/20">
+              <div className="h-8 w-8 animate-spin rounded-full border-4 border-[color:var(--border)] border-t-[color:var(--accent-primary)]" />
+            </div>
+          )}
+          {status === "success" && (
+            <div className="flex h-16 w-16 items-center justify-center rounded-full bg-green-500/20">
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                width="32"
+                height="32"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                className="text-green-500"
+              >
+                <polyline points="20 6 9 17 4 12" />
               </svg>
             </div>
-            <h1 className="text-xl font-semibold text-[color:var(--text-primary)]">{message}</h1>
-          </>
-        )}
+          )}
+          {status === "error" && (
+            <div className="flex h-16 w-16 items-center justify-center rounded-full bg-red-500/20">
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                width="32"
+                height="32"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                className="text-red-500"
+              >
+                <circle cx="12" cy="12" r="10" />
+                <line x1="15" y1="9" x2="9" y2="15" />
+                <line x1="9" y1="9" x2="15" y2="15" />
+              </svg>
+            </div>
+          )}
+        </div>
+
+        <div>
+          <h1 className="mb-2 text-2xl font-bold text-[color:var(--text-primary)]">
+            {status === "verifying" && "Verifying..."}
+            {status === "success" && "Success!"}
+            {status === "error" && "Verification Failed"}
+          </h1>
+          <p className="text-[color:var(--text-secondary)]">{message}</p>
+        </div>
 
         {status === "error" && (
-          <>
-            <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-[color:var(--accent-danger)]/10">
-              <svg className="h-6 w-6 text-[color:var(--accent-danger)]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-              </svg>
-            </div>
-            <h1 className="mb-2 text-xl font-semibold text-[color:var(--text-primary)]">Verification Failed</h1>
-            <p className="mb-4 text-sm text-[color:var(--text-secondary)]">{message}</p>
+          <div className="space-y-2">
             <button
               onClick={() => router.push("/")}
-              className="rounded-lg bg-[color:var(--accent-primary)] px-4 py-2 text-sm font-medium text-white transition hover:bg-[color:var(--accent-hover)]"
+              className="w-full rounded-lg bg-[color:var(--accent-primary)] px-4 py-2 text-white transition hover:bg-[color:var(--accent-primary)]/90"
             >
-              Go Home
+              Go to Home
             </button>
-          </>
+            <p className="text-xs text-[color:var(--text-tertiary)]">
+              Magic links expire after 15 minutes. Please request a new one.
+            </p>
+          </div>
         )}
       </div>
     </div>
+  );
+}
+
+export default function VerifyPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="flex min-h-screen flex-col items-center justify-center bg-[color:var(--background)] p-6">
+          <div className="flex h-16 w-16 items-center justify-center rounded-full bg-[color:var(--accent-primary)]/20">
+            <div className="h-8 w-8 animate-spin rounded-full border-4 border-[color:var(--border)] border-t-[color:var(--accent-primary)]" />
+          </div>
+        </div>
+      }
+    >
+      <VerifyContent />
+    </Suspense>
   );
 }
