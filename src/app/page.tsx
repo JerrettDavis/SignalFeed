@@ -58,7 +58,9 @@ export default function Home() {
   const [isAdmin, setIsAdmin] = useState(false);
   const [showWelcome, setShowWelcome] = useState(false);
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
-  const [selectedSightingId, setSelectedSightingId] = useState<string | null>(null);
+  const [selectedSightingId, setSelectedSightingId] = useState<string | null>(
+    null
+  );
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [userId, setUserId] = useState<string | undefined>(undefined);
   const [userEmail, setUserEmail] = useState<string | undefined>(undefined);
@@ -181,7 +183,12 @@ export default function Home() {
     }
   };
 
-  const handleAuthSuccess = (user: { id: string; email: string; username?: string; role: string }) => {
+  const handleAuthSuccess = (user: {
+    id: string;
+    email: string;
+    username?: string;
+    role: string;
+  }) => {
     setIsLoggedIn(true);
     setUserId(user.id);
     setUserEmail(user.email);
@@ -252,21 +259,12 @@ export default function Home() {
             </svg>
           </button>
 
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[color:var(--accent-primary)] text-white">
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              width="18"
-              height="18"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2.5"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            >
-              <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z" />
-              <circle cx="12" cy="12" r="3" />
-            </svg>
+          <div className="flex h-8 w-8 items-center justify-center rounded-lg overflow-hidden">
+            <img
+              src="/jdh-logo.png"
+              alt="SightSignal Logo"
+              className="h-full w-full object-contain"
+            />
           </div>
           <div>
             <h1 className="text-sm font-semibold text-[color:var(--text-primary)]">
@@ -428,7 +426,7 @@ export default function Home() {
                   fill="currentColor"
                   stroke="none"
                 >
-                  <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 3c1.66 0 3 1.34 3 3s-1.34 3-3 3-3-1.34-3-3 1.34-3 3-3zm0 14.2c-2.5 0-4.71-1.28-6-3.22.03-1.99 4-3.08 6-3.08 1.99 0 5.97 1.09 6 3.08-1.29 1.94-3.5 3.22-6 3.22z"/>
+                  <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 3c1.66 0 3 1.34 3 3s-1.34 3-3 3-3-1.34-3-3 1.34-3 3-3zm0 14.2c-2.5 0-4.71-1.28-6-3.22.03-1.99 4-3.08 6-3.08 1.99 0 5.97 1.09 6 3.08-1.29 1.94-3.5 3.22-6 3.22z" />
                 </svg>
               ) : (
                 // Outline person icon when not logged in
@@ -449,8 +447,8 @@ export default function Home() {
               )}
             </button>
             {isLoggedIn && (
-              <UserDropdown 
-                isOpen={showUserDropdown} 
+              <UserDropdown
+                isOpen={showUserDropdown}
                 onClose={() => setShowUserDropdown(false)}
                 onSignOut={handleLogout}
                 userEmail={userEmail}
