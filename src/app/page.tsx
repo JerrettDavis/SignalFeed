@@ -10,6 +10,7 @@ import { SightingDrilldown } from "@/components/sightings/SightingDrilldown";
 import { AuthModal } from "@/components/auth/AuthModal";
 import { UserDropdown } from "@/components/auth/UserDropdown";
 import { PushNotificationManager } from "@/components/push/PushNotificationManager";
+import { UserLocationTracker } from "@/components/location/UserLocationTracker";
 import { SightingSchema } from "@/contracts/sighting";
 import type { SightingCard } from "@/data/mock-sightings";
 import { categoryLabelById, typeLabelById } from "@/data/taxonomy";
@@ -67,6 +68,7 @@ export default function Home() {
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [showUserDropdown, setShowUserDropdown] = useState(false);
   const [notificationsEnabled, setNotificationsEnabled] = useState(false);
+  const [followMeEnabled, setFollowMeEnabled] = useState(false);
 
   const loadSightings = useCallback(async () => {
     try {
@@ -131,6 +133,13 @@ export default function Home() {
           setIsLoggedIn(true);
           setUserId(data.data.user.id);
           setUserEmail(data.data.user.email);
+
+          // Load user settings for Follow Me mode
+          const settingsResponse = await fetch("/api/users/settings");
+          if (settingsResponse.ok) {
+            const settingsData = await settingsResponse.json();
+            setFollowMeEnabled(settingsData.data.settings.followMeMode);
+          }
         } else {
           setIsLoggedIn(false);
           setUserId(undefined);
@@ -237,6 +246,11 @@ export default function Home() {
         isLoggedIn={isLoggedIn}
         userId={userId}
         onSubscriptionChange={setNotificationsEnabled}
+      />
+      <UserLocationTracker
+        isLoggedIn={isLoggedIn}
+        userId={userId}
+        followMeEnabled={followMeEnabled}
       />
       {/* Top Bar */}
       <header className="relative flex items-center justify-between border-b border-[color:var(--border)] bg-[color:var(--surface-elevated)] px-4 py-3 shadow-[var(--shadow-sm)] z-30 flex-shrink-0">

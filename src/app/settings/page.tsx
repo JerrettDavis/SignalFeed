@@ -32,23 +32,42 @@ export default function SettingsPage() {
     checkAuth();
   }, [router]);
 
-  const toggleNotifications = async () => {
-    if (notificationsEnabled) {
-      // @ts-expect-error - Global function from PushNotificationManager
-      if (typeof window.unsubscribeFromPush === "function") {
-        // @ts-expect-error - Global function
-        await window.unsubscribeFromPush();
-        setNotificationsEnabled(false);
-      }
-    } else {
-      // @ts-expect-error - Global function from PushNotificationManager
-      if (typeof window.subscribeToPush === "function") {
-        // @ts-expect-error - Global function
-        const success = await window.subscribeToPush();
-        if (success) {
-          setNotificationsEnabled(true);
+  const updateSetting = async (
+    key: keyof Settings,
+    value: boolean | string
+  ) => {
+    setSaving(true);
+    try {
+      const response = await fetch("/api/users/settings", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ [key]: value }),
+      });
+
+      if (response.ok) {
+        setSettings((prev) => ({ ...prev, [key]: value }));
+
+        // Handle notification toggle
+        if (key === "notificationsEnabled") {
+          if (value) {
+            // @ts-expect-error - Global function from PushNotificationManager
+            if (typeof window.subscribeToPush === "function") {
+              // @ts-expect-error - Global function
+              await window.subscribeToPush();
+            }
+          } else {
+            // @ts-expect-error - Global function from PushNotificationManager
+            if (typeof window.unsubscribeFromPush === "function") {
+              // @ts-expect-error - Global function
+              await window.unsubscribeFromPush();
+            }
+          }
         }
       }
+    } catch (error) {
+      console.error("Failed to update setting:", error);
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -91,16 +110,22 @@ export default function SettingsPage() {
                 </p>
               </div>
               <button
-                onClick={toggleNotifications}
+                onClick={() =>
+                  updateSetting(
+                    "notificationsEnabled",
+                    !settings.notificationsEnabled
+                  )
+                }
+                disabled={saving}
                 className={`relative h-6 w-11 rounded-full transition ${
-                  notificationsEnabled
+                  settings.notificationsEnabled
                     ? "bg-[color:var(--accent-primary)]"
                     : "bg-[color:var(--border)]"
-                }`}
+                } ${saving ? "opacity-50" : ""}`}
               >
                 <div
                   className={`absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition ${
-                    notificationsEnabled ? "left-5" : "left-0.5"
+                    settings.notificationsEnabled ? "left-5" : "left-0.5"
                   }`}
                 />
               </button>
@@ -110,24 +135,39 @@ export default function SettingsPage() {
           {/* Privacy Section */}
           <div className="rounded-2xl border border-[color:var(--border)] bg-[color:var(--surface)] p-6 shadow-lg">
             <h2 className="mb-4 text-xl font-semibold text-[color:var(--text-primary)]">
-              Privacy
+              Privacy & Location Sharing
             </h2>
             <div className="space-y-4">
               <div className="flex items-center justify-between">
-                <div>
+                <div className="flex-1">
                   <p className="font-medium text-[color:var(--text-primary)]">
-                    Show My Location
+                    Follow Me Mode
                   </p>
                   <p className="text-sm text-[color:var(--text-secondary)]">
-                    Display your approximate location to other users
+                    Share your live location with others (you can block specific
+                    users)
                   </p>
                 </div>
-                <button className="relative h-6 w-11 rounded-full bg-[color:var(--border)]">
-                  <div className="absolute left-0.5 top-0.5 h-5 w-5 rounded-full bg-white shadow transition" />
+                <button
+                  onClick={() =>
+                    updateSetting("followMeMode", !settings.followMeMode)
+                  }
+                  disabled={saving}
+                  className={`relative h-6 w-11 rounded-full transition ${
+                    settings.followMeMode
+                      ? "bg-[color:var(--accent-primary)]"
+                      : "bg-[color:var(--border)]"
+                  } ${saving ? "opacity-50" : ""}`}
+                >
+                  <div
+                    className={`absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition ${
+                      settings.followMeMode ? "left-5" : "left-0.5"
+                    }`}
+                  />
                 </button>
               </div>
               <div className="flex items-center justify-between">
-                <div>
+                <div className="flex-1">
                   <p className="font-medium text-[color:var(--text-primary)]">
                     Public Profile
                   </p>
@@ -135,11 +175,34 @@ export default function SettingsPage() {
                     Allow others to view your profile and sightings
                   </p>
                 </div>
-                <button className="relative h-6 w-11 rounded-full bg-[color:var(--accent-primary)]">
-                  <div className="absolute left-5 top-0.5 h-5 w-5 rounded-full bg-white shadow transition" />
+                <button
+                  onClick={() =>
+                    updateSetting("publicProfile", !settings.publicProfile)
+                  }
+                  disabled={saving}
+                  className={`relative h-6 w-11 rounded-full transition ${
+                    settings.publicProfile
+                      ? "bg-[color:var(--accent-primary)]"
+                      : "bg-[color:var(--border)]"
+                  } ${saving ? "opacity-50" : ""}`}
+                >
+                  <div
+                    className={`absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition ${
+                      settings.publicProfile ? "left-5" : "left-0.5"
+                    }`}
+                  />
                 </button>
               </div>
             </div>
+            {settings.followMeMode && (
+              <div className="mt-4 rounded-lg border border-[color:var(--accent-primary)] bg-[color:var(--accent-primary)]/10 p-3">
+                <p className="text-sm text-[color:var(--text-primary)]">
+                  📍 <strong>Follow Me is active!</strong> Your live location is
+                  visible to other users. You can block specific users from the
+                  Profile page if needed.
+                </p>
+              </div>
+            )}
           </div>
 
           {/* Appearance Section */}
@@ -152,20 +215,37 @@ export default function SettingsPage() {
                 <label className="block text-sm font-medium text-[color:var(--text-secondary)]">
                   Theme
                 </label>
-                <select className="mt-1 w-full rounded-lg border border-[color:var(--border)] bg-[color:var(--background)] px-3 py-2 text-[color:var(--text-primary)] focus:border-[color:var(--accent-primary)] focus:outline-none">
-                  <option>Dark Mode</option>
-                  <option>Light Mode</option>
-                  <option>Auto (System)</option>
+                <select
+                  value={settings.theme}
+                  onChange={(e) =>
+                    updateSetting("theme", e.target.value as Settings["theme"])
+                  }
+                  disabled={saving}
+                  className="mt-1 w-full rounded-lg border border-[color:var(--border)] bg-[color:var(--background)] px-3 py-2 text-[color:var(--text-primary)] focus:border-[color:var(--accent-primary)] focus:outline-none disabled:opacity-50"
+                >
+                  <option value="dark">Dark Mode</option>
+                  <option value="light">Light Mode</option>
+                  <option value="auto">Auto (System)</option>
                 </select>
               </div>
               <div>
                 <label className="block text-sm font-medium text-[color:var(--text-secondary)]">
                   Map Style
                 </label>
-                <select className="mt-1 w-full rounded-lg border border-[color:var(--border)] bg-[color:var(--background)] px-3 py-2 text-[color:var(--text-primary)] focus:border-[color:var(--accent-primary)] focus:outline-none">
-                  <option>Standard</option>
-                  <option>Satellite</option>
-                  <option>Terrain</option>
+                <select
+                  value={settings.mapStyle}
+                  onChange={(e) =>
+                    updateSetting(
+                      "mapStyle",
+                      e.target.value as Settings["mapStyle"]
+                    )
+                  }
+                  disabled={saving}
+                  className="mt-1 w-full rounded-lg border border-[color:var(--border)] bg-[color:var(--background)] px-3 py-2 text-[color:var(--text-primary)] focus:border-[color:var(--accent-primary)] focus:outline-none disabled:opacity-50"
+                >
+                  <option value="standard">Standard</option>
+                  <option value="satellite">Satellite</option>
+                  <option value="terrain">Terrain</option>
                 </select>
               </div>
             </div>
