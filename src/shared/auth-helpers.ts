@@ -25,13 +25,16 @@ export const getAuthToken = async (): Promise<TokenPayload | null> => {
 };
 
 export const requireAuth = async (): Promise<TokenPayload> => {
-  const payload = await getAuthToken();
+  const accessResult = await getAdminAccess();
 
-  if (!payload) {
+  if (!accessResult.isAdmin) {
     throw new Error("Unauthorized");
   }
 
-  return payload;
+  // Return a TokenPayload-compatible object
+  return {
+    username: accessResult.username || accessResult.email || "admin",
+  };
 };
 
 /**
