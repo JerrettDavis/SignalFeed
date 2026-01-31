@@ -1,6 +1,15 @@
-import { getUserRepository, getMagicLinkRepository } from "@/adapters/repositories/repository-factory";
+import {
+  getUserRepository,
+  getMagicLinkRepository,
+} from "@/adapters/repositories/repository-factory";
 import { createSession, generateSessionToken } from "@/domain/auth/auth";
-import { jsonBadRequest, jsonOk, jsonUnauthorized, jsonServerError } from "@/shared/http";
+import {
+  jsonBadRequest,
+  jsonOk,
+  jsonUnauthorized,
+  jsonServerError,
+} from "@/shared/http";
+import { cookies } from "next/headers";
 
 export const runtime = "nodejs";
 
@@ -19,7 +28,7 @@ export const GET = async (request: Request) => {
 
     // Verify token
     const email = await magicLinkRepo.verify(token);
-    
+
     if (!email) {
       return jsonUnauthorized("Invalid or expired token");
     }
@@ -34,11 +43,34 @@ export const GET = async (request: Request) => {
     await magicLinkRepo.delete(token);
 
     // Create session
-    const session = createSession(user.id, user.email, user.username, user.role);
+    const session = createSession(
+      user.id,
+      user.email,
+      user.username,
+      user.role
+    );
     const sessionToken = generateSessionToken();
 
-    // Set session cookie
-    const response = jsonOk({
+    // Set session cookies using Next.js 15+ API
+    const cookieStore = await cookies();
+
+    cookieStore.set("session", sessionToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "lax",
+      maxAge: 60 * 60 * 24 * 7,
+      path: "/",
+    });
+
+    cookieStore.set("session_data", JSON.stringify(session), {
+      httpOnly: false,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "lax",
+      maxAge: 60 * 60 * 24 * 7,
+      path: "/",
+    });
+
+    return jsonOk({
       data: {
         user: {
           id: user.id,
@@ -48,24 +80,6 @@ export const GET = async (request: Request) => {
         },
       },
     });
-
-    response.cookies.set("session", sessionToken, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "lax",
-      maxAge: 60 * 60 * 24 * 7,
-      path: "/",
-    });
-
-    response.cookies.set("session_data", JSON.stringify(session), {
-      httpOnly: false,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "lax",
-      maxAge: 60 * 60 * 24 * 7,
-      path: "/",
-    });
-
-    return response;
   } catch (error) {
     console.error("Verification error:", error);
     return jsonServerError("Failed to verify token");

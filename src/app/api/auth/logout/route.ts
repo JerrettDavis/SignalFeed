@@ -1,12 +1,14 @@
 import { jsonOk } from "@/shared/http";
+import { cookies } from "next/headers";
 
 export const runtime = "nodejs";
 
 // POST /api/auth/logout
 export const POST = async () => {
-  const response = jsonOk({ data: { message: "Logged out successfully" } });
+  const cookieStore = await cookies();
 
-  response.cookies.set("session", "", {
+  // Delete session cookies
+  cookieStore.set("session", "", {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
     sameSite: "lax",
@@ -14,7 +16,7 @@ export const POST = async () => {
     path: "/",
   });
 
-  response.cookies.set("session_data", "", {
+  cookieStore.set("session_data", "", {
     httpOnly: false,
     secure: process.env.NODE_ENV === "production",
     sameSite: "lax",
@@ -22,5 +24,5 @@ export const POST = async () => {
     path: "/",
   });
 
-  return response;
+  return jsonOk({ data: { message: "Logged out successfully" } });
 };
