@@ -5,21 +5,26 @@ import { useCallback, useEffect, useState } from "react";
 interface PushNotificationManagerProps {
   isLoggedIn: boolean;
   userId?: string;
+  onSubscriptionChange?: (isSubscribed: boolean) => void;
 }
 
-export function PushNotificationManager({ isLoggedIn, userId }: PushNotificationManagerProps) {
+export function PushNotificationManager({ isLoggedIn, userId, onSubscriptionChange }: PushNotificationManagerProps) {
   const [permission, setPermission] = useState<NotificationPermission>("default");
+  const [isSubscribed, setIsSubscribed] = useState(false);
 
   const checkSubscription = useCallback(async () => {
     try {
       const registration = await navigator.serviceWorker.ready;
       const subscription = await registration.pushManager.getSubscription();
-      return !!subscription;
+      const subscribed = !!subscription;
+      setIsSubscribed(subscribed);
+      onSubscriptionChange?.(subscribed);
+      return subscribed;
     } catch (error) {
       console.error("[Push] Error checking subscription:", error);
       return false;
     }
-  }, []);
+  }, [onSubscriptionChange]);
 
   useEffect(() => {
     // Initialize permission state
@@ -33,12 +38,15 @@ export function PushNotificationManager({ isLoggedIn, userId }: PushNotification
 
   useEffect(() => {
     // Check if user is already subscribed
-    if (isLoggedIn && userId && "serviceWorker" in navigator && "PushManager" in window) {
-      checkSubscription();
-    }
+    const checkStatus = async () => {
+      if (isLoggedIn && userId && "serviceWorker" in navigator && "PushManager" in window) {
+        await checkSubscription();
+      }
+    };
+    checkStatus();
   }, [isLoggedIn, userId, checkSubscription]);
 
-  const requestPermission = async () => {
+  const requestPermission = useCallback(async () => {
     try {
       const perm = await Notification.requestPermission();
       setPermission(perm);
@@ -47,7 +55,7 @@ export function PushNotificationManager({ isLoggedIn, userId }: PushNotification
       console.error("[Push] Error requesting permission:", error);
       return "denied";
     }
-  };
+  }, []);
 
   const subscribe = useCallback(async () => {
     try {

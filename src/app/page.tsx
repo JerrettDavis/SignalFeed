@@ -66,6 +66,7 @@ export default function Home() {
   const [userEmail, setUserEmail] = useState<string | undefined>(undefined);
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [showUserDropdown, setShowUserDropdown] = useState(false);
+  const [notificationsEnabled, setNotificationsEnabled] = useState(false);
 
   const loadSightings = useCallback(async () => {
     try {
@@ -232,7 +233,11 @@ export default function Home() {
 
   return (
     <div className="fixed inset-0 flex flex-col bg-[color:var(--background)]">
-      <PushNotificationManager isLoggedIn={isLoggedIn} userId={userId} />
+      <PushNotificationManager 
+        isLoggedIn={isLoggedIn} 
+        userId={userId}
+        onSubscriptionChange={setNotificationsEnabled}
+      />
       {/* Top Bar */}
       <header className="relative flex items-center justify-between border-b border-[color:var(--border)] bg-[color:var(--surface-elevated)] px-4 py-3 shadow-[var(--shadow-sm)] z-30 flex-shrink-0">
         <div className="flex items-center gap-3">
@@ -452,6 +457,7 @@ export default function Home() {
                 onClose={() => setShowUserDropdown(false)}
                 onSignOut={handleLogout}
                 userEmail={userEmail}
+                notificationsEnabled={notificationsEnabled}
               />
             )}
           </div>
