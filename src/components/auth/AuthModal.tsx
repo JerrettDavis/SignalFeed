@@ -5,7 +5,12 @@ import { useState } from "react";
 interface AuthModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSuccess: (user: { id: string; email: string; username?: string; role: string }) => void;
+  onSuccess: (user: {
+    id: string;
+    email: string;
+    username?: string;
+    role: string;
+  }) => void;
 }
 
 export function AuthModal({ isOpen, onClose }: AuthModalProps) {
@@ -41,12 +46,6 @@ export function AuthModal({ isOpen, onClose }: AuthModalProps) {
       }
 
       setSent(true);
-
-      // In development, auto-open the magic link
-      if (data.data.token && process.env.NODE_ENV === "development") {
-        console.log("Dev mode: Opening magic link...");
-        window.location.href = `/auth/verify?token=${data.data.token}`;
-      }
     } catch (err) {
       setError(err instanceof Error ? err.message : "An error occurred");
     } finally {
@@ -63,32 +62,59 @@ export function AuthModal({ isOpen, onClose }: AuthModalProps) {
 
   return (
     <>
-      <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm" onClick={handleClose} />
+      <div
+        className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm"
+        onClick={handleClose}
+      />
       <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-        <div className="w-full max-w-md rounded-2xl bg-[color:var(--surface)] shadow-2xl border border-[color:var(--border)]" onClick={(e) => e.stopPropagation()}>
+        <div
+          className="w-full max-w-md rounded-2xl bg-[color:var(--surface)] shadow-2xl border border-[color:var(--border)]"
+          onClick={(e) => e.stopPropagation()}
+        >
           <div className="flex items-center justify-between border-b border-[color:var(--border)] px-6 py-4">
             <h2 className="text-xl font-semibold text-[color:var(--text-primary)]">
               {sent ? "Check Your Email" : "Welcome"}
             </h2>
-            <button onClick={handleClose} className="rounded-lg p-2 text-[color:var(--text-secondary)] transition hover:bg-[color:var(--surface-elevated)]">
-              <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+            <button
+              onClick={handleClose}
+              className="rounded-lg p-2 text-[color:var(--text-secondary)] transition hover:bg-[color:var(--surface-elevated)]"
+            >
+              <svg
+                className="h-5 w-5"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M6 18L18 6M6 6l12 12"
+                />
+              </svg>
             </button>
           </div>
 
           {!sent ? (
             <form onSubmit={handleSubmit} className="p-6 space-y-4">
               <p className="text-sm text-[color:var(--text-secondary)]">
-                Enter your email to get started. We&apos;ll send you a magic link to sign in instantly.
+                Enter your email to get started. We&apos;ll send you a magic
+                link to sign in instantly.
               </p>
 
               {error && (
                 <div className="rounded-lg border border-[color:var(--accent-danger)]/20 bg-[color:var(--accent-danger)]/5 p-3">
-                  <p className="text-sm text-[color:var(--accent-danger)]">{error}</p>
+                  <p className="text-sm text-[color:var(--accent-danger)]">
+                    {error}
+                  </p>
                 </div>
               )}
 
               <div>
-                <label htmlFor="email" className="block text-sm font-medium text-[color:var(--text-secondary)] mb-2">
+                <label
+                  htmlFor="email"
+                  className="block text-sm font-medium text-[color:var(--text-secondary)] mb-2"
+                >
                   Email
                 </label>
                 <input
@@ -119,8 +145,18 @@ export function AuthModal({ isOpen, onClose }: AuthModalProps) {
           ) : (
             <div className="p-6 space-y-4">
               <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-[color:var(--accent-success)]/10">
-                <svg className="h-6 w-6 text-[color:var(--accent-success)]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                <svg
+                  className="h-6 w-6 text-[color:var(--accent-success)]"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"
+                  />
                 </svg>
               </div>
 
@@ -138,7 +174,9 @@ export function AuthModal({ isOpen, onClose }: AuthModalProps) {
 
               <div className="rounded-lg border border-[color:var(--border)] bg-[color:var(--surface-elevated)] p-4">
                 <p className="text-xs text-[color:var(--text-tertiary)]">
-                  💡 <strong>Development Mode:</strong> Check your terminal/console for the magic link. In production, you&apos;ll receive an email.
+                  💡 <strong>Development Mode:</strong> Check your
+                  terminal/console for the magic link. In production,
+                  you&apos;ll receive an email.
                 </p>
               </div>
 
