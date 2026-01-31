@@ -38,7 +38,7 @@ export default function SettingsPage() {
         const settingsResponse = await fetch("/api/users/settings");
         if (settingsResponse.ok) {
           const data = await settingsResponse.json();
-          setSettings(data.data.settings);
+          setSettings(data.settings);
         }
       } catch {
         router.push("/");
