@@ -194,6 +194,19 @@ export default function Home() {
     checkAdminStatus();
     checkAuthStatus();
 
+    // Sync activeView with URL on mount
+    if (typeof window !== "undefined") {
+      const params = new URLSearchParams(window.location.search);
+      const viewParam = params.get("view") as View;
+      if (
+        viewParam &&
+        ["signals", "sightings", "report", "geofences"].includes(viewParam)
+      ) {
+        // eslint-disable-next-line react-hooks/set-state-in-effect
+        setActiveView(viewParam);
+      }
+    }
+
     // Also check auth when window regains focus (e.g., after redirect from verify page)
     const handleFocus = () => {
       checkAuthStatus();
