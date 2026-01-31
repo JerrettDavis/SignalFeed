@@ -7,6 +7,7 @@ import { config } from "@/shared/config";
 import { loadMaplibre } from "@/shared/maplibre";
 import type { SightingCard } from "@/data/mock-sightings";
 import { useTheme } from "@/hooks/useTheme";
+import { EVENTS, dispatchEvent } from "@/shared/events";
 
 type SelectedGeofence = {
   id: string;
@@ -62,6 +63,7 @@ export const SightingsMap = ({
   const containerRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<maplibregl.Map | null>(null);
   const popupRef = useRef<maplibregl.Popup | null>(null);
+  const reportMarkerRef = useRef<maplibregl.Marker | null>(null);
   const { effectiveTheme } = useTheme();
   const [showHeatmap, setShowHeatmap] = useState(false);
 
@@ -149,6 +151,8 @@ export const SightingsMap = ({
       );
 
       map.on("load", () => {
+        console.log("Map loaded, mapRef will be set");
+        
         // Add source with clustering enabled
         map.addSource("sightings", {
           type: "geojson",
@@ -866,11 +870,237 @@ export const SightingsMap = ({
     });
   }, [selectedSighting]);
 
+  // Handle report location marker - now depends on mapRef
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map) {
+      return;
+    }
+
+    let mapClickHandler: ((e: maplibregl.MapMouseEvent) => void) | null = null;
+
+    const createOrUpdateMarker = async (lng: number, lat: number, flyTo = false, animate = false) => {
+      try {
+        const maplibre = await loadMaplibre();
+        
+        // Create or update marker
+        if (!reportMarkerRef.current) {
+          const el = document.createElement("div");
+          el.className = "report-marker";
+          el.style.width = "40px";
+          el.style.height = "40px";
+          el.style.cursor = "grab";
+          el.style.zIndex = "1000";
+          el.style.pointerEvents = "auto";
+          
+          // Add drop animation if requested
+          if (animate) {
+            el.style.animation = "pinDrop 0.6s cubic-bezier(0.34, 1.56, 0.64, 1)";
+          }
+          
+          el.innerHTML = `
+            <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" fill="#f2c94c" stroke="#0c1a24" stroke-width="2" style="filter: drop-shadow(0 4px 6px rgba(0,0,0,0.3));">
+              <path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z" />
+              <circle cx="12" cy="10" r="3" fill="#0c1a24"/>
+            </svg>
+          `;
+
+          const marker = new maplibre.Marker({
+            element: el,
+            draggable: true,
+            anchor: "bottom",
+          })
+            .setLngLat([lng, lat])
+            .addTo(map);
+
+          marker.on("dragstart", () => {
+            el.style.cursor = "grabbing";
+          });
+
+          marker.on("drag", () => {
+            el.style.animation = "none";
+          });
+
+          marker.on("dragend", () => {
+            el.style.cursor = "grab";
+            const lngLat = marker.getLngLat();
+            dispatchEvent(EVENTS.reportLocationUpdated, {
+              lat: lngLat.lat,
+              lng: lngLat.lng,
+            });
+          });
+
+          reportMarkerRef.current = marker;
+          
+          // Enable map click to place pin (but not on the marker itself)
+          mapClickHandler = (e: maplibregl.MapMouseEvent) => {
+            // Check if click is on the marker element
+            const target = e.originalEvent.target as HTMLElement;
+            if (target.closest('.report-marker')) {
+              return;
+            }
+            // Animate pin movement
+            el.style.animation = "pinBounce 0.4s ease-out";
+            setTimeout(() => {
+              el.style.animation = "none";
+            }, 400);
+            
+            marker.setLngLat(e.lngLat);
+            dispatchEvent(EVENTS.reportLocationUpdated, {
+              lat: e.lngLat.lat,
+              lng: e.lngLat.lng,
+            });
+          };
+          map.on("click", mapClickHandler);
+        } else {
+          reportMarkerRef.current.setLngLat([lng, lat]);
+          const el = reportMarkerRef.current.getElement();
+          if (animate) {
+            el.style.animation = "pinBounce 0.4s ease-out";
+            setTimeout(() => {
+              el.style.animation = "none";
+            }, 400);
+          }
+        }
+
+        // Fly to location with zoom
+        if (flyTo) {
+          map.flyTo({
+            center: [lng, lat],
+            zoom: Math.max(map.getZoom(), 15),
+            duration: 1200,
+            essential: true,
+          });
+        }
+        
+        // Dispatch update
+        dispatchEvent(EVENTS.reportLocationUpdated, {
+          lat,
+          lng,
+        });
+      } catch (error) {
+        console.error("Error creating marker:", error);
+      }
+    };
+
+    const handleFormOpened = () => {
+      // Ensure map is loaded before placing pin
+      if (!map.isStyleLoaded()) {
+        map.once("load", () => {
+          const center = map.getCenter();
+          const currentZoom = map.getZoom();
+          
+          // Zoom in with fly animation
+          map.flyTo({
+            center: [center.lng, center.lat],
+            zoom: Math.max(currentZoom, 15),
+            duration: 1000,
+            essential: true,
+          });
+          
+          // Drop pin after slight delay for dramatic effect
+          setTimeout(() => {
+            void createOrUpdateMarker(center.lng, center.lat, false, true);
+          }, 300);
+        });
+      } else {
+        // Map already loaded
+        const center = map.getCenter();
+        const currentZoom = map.getZoom();
+        
+        // Zoom in with fly animation
+        map.flyTo({
+          center: [center.lng, center.lat],
+          zoom: Math.max(currentZoom, 15),
+          duration: 1000,
+          essential: true,
+        });
+        
+        // Drop pin after slight delay for dramatic effect
+        setTimeout(() => {
+          void createOrUpdateMarker(center.lng, center.lat, false, true);
+        }, 300);
+      }
+    };
+
+    const handleLocationSet = async (event: Event) => {
+      const detail = (event as CustomEvent).detail as { lat: number; lng: number };
+      await createOrUpdateMarker(detail.lng, detail.lat, true, true);
+    };
+
+    const handleFormClosed = () => {
+      if (reportMarkerRef.current) {
+        reportMarkerRef.current.remove();
+        reportMarkerRef.current = null;
+      }
+      if (mapClickHandler) {
+        map.off("click", mapClickHandler);
+        mapClickHandler = null;
+      }
+    };
+
+    window.addEventListener(EVENTS.reportFormOpened, handleFormOpened);
+    window.addEventListener(EVENTS.reportLocationSet, handleLocationSet);
+    window.addEventListener(EVENTS.reportFormClosed, handleFormClosed);
+    
+    return () => {
+      window.removeEventListener(EVENTS.reportFormOpened, handleFormOpened);
+      window.removeEventListener(EVENTS.reportLocationSet, handleLocationSet);
+      window.removeEventListener(EVENTS.reportFormClosed, handleFormClosed);
+      if (mapClickHandler) {
+        map.off("click", mapClickHandler);
+      }
+      reportMarkerRef.current?.remove();
+      reportMarkerRef.current = null;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mapRef.current]); // Re-run when map is initialized
+
   return (
     <div
       data-testid="sightings-map"
       className="absolute inset-0 overflow-hidden z-0"
     >
+      <style>{`
+        @keyframes pinDrop {
+          0% {
+            transform: translateY(-200px) scale(0.3);
+            opacity: 0;
+          }
+          50% {
+            opacity: 1;
+          }
+          70% {
+            transform: translateY(10px) scale(1.1);
+          }
+          85% {
+            transform: translateY(-5px) scale(0.95);
+          }
+          100% {
+            transform: translateY(0) scale(1);
+            opacity: 1;
+          }
+        }
+        
+        @keyframes pinBounce {
+          0%, 100% {
+            transform: scale(1) translateY(0);
+          }
+          30% {
+            transform: scale(1.2) translateY(-10px);
+          }
+          50% {
+            transform: scale(0.9) translateY(0);
+          }
+          70% {
+            transform: scale(1.05) translateY(-3px);
+          }
+        }
+        
+        .report-marker {
+          pointer-events: auto !important;
+        }
+      `}</style>
       <div
         ref={containerRef}
         className="absolute inset-0"

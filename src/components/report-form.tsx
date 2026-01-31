@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { FormEvent } from "react";
 import { categories, sightingTypes } from "@/data/taxonomy";
 import { dispatchEvent, EVENTS } from "@/shared/events";
@@ -26,23 +26,74 @@ export const ReportForm = () => {
   const [status, setStatus] = useState<"idle" | "saving" | "error" | "success">(
     "idle"
   );
+  const [locationError, setLocationError] = useState<string | null>(null);
+  const [isGettingLocation, setIsGettingLocation] = useState(false);
 
   const filteredTypes = useMemo(
     () => sightingTypes.filter((type) => type.categoryId === categoryId),
     [categoryId]
   );
 
+  // Listen for location updates from map
+  useEffect(() => {
+    const handleLocationUpdate = (event: Event) => {
+      const detail = (event as CustomEvent).detail as { lat: number; lng: number };
+      setLat(detail.lat.toFixed(6));
+      setLng(detail.lng.toFixed(6));
+      setLocationError(null);
+    };
+
+    window.addEventListener(EVENTS.reportLocationUpdated, handleLocationUpdate);
+    
+    // Notify map that report form is opened
+    dispatchEvent(EVENTS.reportFormOpened);
+    
+    return () => {
+      window.removeEventListener(EVENTS.reportLocationUpdated, handleLocationUpdate);
+    };
+  }, []);
+
   const handleUseLocation = () => {
     if (!navigator.geolocation) {
-      setStatus("error");
+      setLocationError("Geolocation is not supported by your browser");
       return;
     }
+    setIsGettingLocation(true);
+    setLocationError(null);
     navigator.geolocation.getCurrentPosition(
       (position) => {
-        setLat(position.coords.latitude.toFixed(6));
-        setLng(position.coords.longitude.toFixed(6));
+        const newLat = position.coords.latitude.toFixed(6);
+        const newLng = position.coords.longitude.toFixed(6);
+        setLat(newLat);
+        setLng(newLng);
+        setIsGettingLocation(false);
+        // Dispatch event to update map marker
+        dispatchEvent(EVENTS.reportLocationSet, {
+          lat: parseFloat(newLat),
+          lng: parseFloat(newLng),
+        });
       },
-      () => setStatus("error")
+      (error) => {
+        setIsGettingLocation(false);
+        switch (error.code) {
+          case error.PERMISSION_DENIED:
+            setLocationError("Location access denied. Please enable location permissions.");
+            break;
+          case error.POSITION_UNAVAILABLE:
+            setLocationError("Location information unavailable.");
+            break;
+          case error.TIMEOUT:
+            setLocationError("Location request timed out.");
+            break;
+          default:
+            setLocationError("Failed to get location.");
+        }
+      },
+      {
+        timeout: 15000,
+        maximumAge: 0,
+        enableHighAccuracy: true,
+      }
     );
   };
 
@@ -86,6 +137,7 @@ export const ReportForm = () => {
     setCustomKey("");
     setCustomValue("");
     dispatchEvent(EVENTS.sightingsUpdated);
+    dispatchEvent(EVENTS.reportFormClosed);
   };
 
   return (
@@ -192,29 +244,60 @@ export const ReportForm = () => {
         <span className="text-xs font-medium text-[color:var(--text-secondary)]">
           Location
         </span>
-        <div className="grid gap-2 md:grid-cols-3">
+        <div className="grid gap-2 md:grid-cols-2">
           <input
             data-testid="report-lat"
             value={lat}
-            onChange={(event) => setLat(event.target.value)}
+            onChange={(event) => {
+              setLat(event.target.value);
+              setLocationError(null);
+              const latNum = parseFloat(event.target.value);
+              const lngNum = parseFloat(lng);
+              if (!isNaN(latNum) && !isNaN(lngNum)) {
+                dispatchEvent(EVENTS.reportLocationSet, {
+                  lat: latNum,
+                  lng: lngNum,
+                });
+              }
+            }}
             className="min-w-0 rounded-lg border border-[color:var(--border)] bg-[color:var(--background)] px-3 py-2 text-sm text-[color:var(--text-primary)] placeholder:text-[color:var(--text-tertiary)] focus:outline-none focus:ring-2 focus:ring-[color:var(--accent-primary)]"
             placeholder="Latitude"
           />
           <input
             data-testid="report-lng"
             value={lng}
-            onChange={(event) => setLng(event.target.value)}
+            onChange={(event) => {
+              setLng(event.target.value);
+              setLocationError(null);
+              const latNum = parseFloat(lat);
+              const lngNum = parseFloat(event.target.value);
+              if (!isNaN(latNum) && !isNaN(lngNum)) {
+                dispatchEvent(EVENTS.reportLocationSet, {
+                  lat: latNum,
+                  lng: lngNum,
+                });
+              }
+            }}
             className="min-w-0 rounded-lg border border-[color:var(--border)] bg-[color:var(--background)] px-3 py-2 text-sm text-[color:var(--text-primary)] placeholder:text-[color:var(--text-tertiary)] focus:outline-none focus:ring-2 focus:ring-[color:var(--accent-primary)]"
             placeholder="Longitude"
           />
-          <button
-            type="button"
-            onClick={handleUseLocation}
-            className="rounded-lg border border-[color:var(--border)] bg-[color:var(--surface)] px-3 py-2 text-xs font-medium text-[color:var(--text-secondary)] hover:bg-[color:var(--surface-elevated)] hover:text-[color:var(--text-primary)] transition"
-          >
-            Use my location
-          </button>
         </div>
+        <button
+          type="button"
+          onClick={handleUseLocation}
+          disabled={isGettingLocation}
+          className="w-full rounded-lg border border-[color:var(--border)] bg-[color:var(--surface)] px-3 py-2 text-sm font-medium text-[color:var(--text-secondary)] hover:bg-[color:var(--surface-elevated)] hover:text-[color:var(--text-primary)] transition disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          {isGettingLocation ? "Getting location..." : "📍 Use my precise location"}
+        </button>
+        <p className="text-xs text-[color:var(--text-tertiary)]">
+          💡 Pin placed at map center. Click map or drag pin to adjust location.
+        </p>
+        {locationError && (
+          <span className="text-xs text-[color:var(--accent-danger)]">
+            {locationError}
+          </span>
+        )}
       </div>
       <div className="grid gap-3 md:grid-cols-2">
         <label className="flex flex-col gap-2">
