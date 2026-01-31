@@ -66,6 +66,14 @@ export const useSignalNavigation = create<SignalNavigationState>(
         ],
         history,
       });
+
+      // Update URL
+      if (typeof window !== "undefined") {
+        const url = new URL(window.location.href);
+        url.searchParams.set("signal", signalId);
+        url.searchParams.delete("sighting");
+        window.history.pushState({}, "", url);
+      }
     },
 
     navigateToSighting: (sightingId: string) => {
@@ -88,6 +96,16 @@ export const useSignalNavigation = create<SignalNavigationState>(
         ],
         history,
       });
+
+      // Update URL
+      if (typeof window !== "undefined") {
+        const url = new URL(window.location.href);
+        if (state.selectedSignal) {
+          url.searchParams.set("signal", state.selectedSignal);
+        }
+        url.searchParams.set("sighting", sightingId);
+        window.history.pushState({}, "", url);
+      }
     },
 
     navigateBack: () => {
@@ -101,6 +119,13 @@ export const useSignalNavigation = create<SignalNavigationState>(
             { level: 3, isOpen: false, width: DEFAULT_SIDEBAR_WIDTHS[3] },
           ],
         });
+
+        // Update URL - remove sighting param
+        if (typeof window !== "undefined") {
+          const url = new URL(window.location.href);
+          url.searchParams.delete("sighting");
+          window.history.pushState({}, "", url);
+        }
       } else if (state.selectedSignal) {
         set({
           selectedSignal: null,
@@ -110,6 +135,13 @@ export const useSignalNavigation = create<SignalNavigationState>(
             { level: 3, isOpen: false, width: DEFAULT_SIDEBAR_WIDTHS[3] },
           ],
         });
+
+        // Update URL - remove signal param
+        if (typeof window !== "undefined") {
+          const url = new URL(window.location.href);
+          url.searchParams.delete("signal");
+          window.history.pushState({}, "", url);
+        }
       }
     },
 
