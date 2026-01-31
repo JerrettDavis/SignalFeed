@@ -1,16 +1,20 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 
 interface UserDropdownProps {
   isOpen: boolean;
   onClose: () => void;
   onSignOut: () => void;
   userEmail?: string;
+  notificationsEnabled?: boolean;
 }
 
-export function UserDropdown({ isOpen, onClose, onSignOut, userEmail }: UserDropdownProps) {
+export function UserDropdown({ isOpen, onClose, onSignOut, userEmail, notificationsEnabled }: UserDropdownProps) {
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const router = useRouter();
+  const [isTogglingNotifications, setIsTogglingNotifications] = useState(false);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -47,7 +51,7 @@ export function UserDropdown({ isOpen, onClose, onSignOut, userEmail }: UserDrop
       ),
       label: "Profile",
       action: () => {
-        console.log("Navigate to profile");
+        router.push("/profile");
         onClose();
       },
     },
@@ -60,7 +64,7 @@ export function UserDropdown({ isOpen, onClose, onSignOut, userEmail }: UserDrop
       ),
       label: "Settings",
       action: () => {
-        console.log("Navigate to settings");
+        router.push("/settings");
         onClose();
       },
     },
@@ -70,14 +74,28 @@ export function UserDropdown({ isOpen, onClose, onSignOut, userEmail }: UserDrop
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
         </svg>
       ),
-      label: "Enable Notifications",
-      action: () => {
-        const win = window as typeof window & { pushNotifications?: { subscribe: () => void } };
+      label: notificationsEnabled ? "Disable Notifications" : "Enable Notifications",
+      action: async () => {
+        setIsTogglingNotifications(true);
+        const win = window as typeof window & { 
+          pushNotifications?: { 
+            subscribe: () => Promise<void>; 
+            unsubscribe: () => Promise<void>;
+            isSubscribed: () => boolean;
+          } 
+        };
+        
         if (win.pushNotifications) {
-          win.pushNotifications.subscribe();
+          if (notificationsEnabled) {
+            await win.pushNotifications.unsubscribe();
+          } else {
+            await win.pushNotifications.subscribe();
+          }
         }
+        setIsTogglingNotifications(false);
         onClose();
       },
+      loading: isTogglingNotifications,
     },
     {
       icon: (
@@ -87,7 +105,7 @@ export function UserDropdown({ isOpen, onClose, onSignOut, userEmail }: UserDrop
       ),
       label: "Messages",
       action: () => {
-        console.log("Navigate to messages");
+        router.push("/messages");
         onClose();
       },
     },
@@ -131,20 +149,26 @@ export function UserDropdown({ isOpen, onClose, onSignOut, userEmail }: UserDrop
             action: () => void;
             danger?: boolean;
             badge?: string;
+            loading?: boolean;
           };
 
           return (
             <button
               key={menuItem.label}
               onClick={menuItem.action}
+              disabled={menuItem.loading}
               className={`flex w-full items-center gap-3 px-4 py-2.5 text-sm transition ${
                 menuItem.danger
                   ? "text-[color:var(--accent-danger)] hover:bg-[color:var(--accent-danger)]/10"
                   : "text-[color:var(--text-primary)] hover:bg-[color:var(--surface-elevated)]"
-              }`}
+              } ${menuItem.loading ? "opacity-50 cursor-wait" : ""}`}
             >
               <span className={menuItem.danger ? "text-[color:var(--accent-danger)]" : "text-[color:var(--text-secondary)]"}>
-                {menuItem.icon}
+                {menuItem.loading ? (
+                  <div className="h-5 w-5 animate-spin rounded-full border-2 border-[color:var(--border)] border-t-[color:var(--accent-primary)]" />
+                ) : (
+                  menuItem.icon
+                )}
               </span>
               <span className="flex-1 text-left">{menuItem.label}</span>
               {menuItem.badge && (
