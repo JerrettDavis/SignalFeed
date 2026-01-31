@@ -19,7 +19,7 @@ export async function GET() {
   const sessionData = cookieStore.get("session_data");
 
   if (!sessionData) {
-    return jsonUnauthorized({ message: "Not authenticated" });
+    return jsonUnauthorized("Not authenticated");
   }
 
   const { userId } = JSON.parse(sessionData.value);
@@ -44,7 +44,7 @@ export async function PATCH(request: NextRequest) {
   const sessionData = cookieStore.get("session_data");
 
   if (!sessionData) {
-    return jsonUnauthorized({ message: "Not authenticated" });
+    return jsonUnauthorized("Not authenticated");
   }
 
   const { userId } = JSON.parse(sessionData.value);

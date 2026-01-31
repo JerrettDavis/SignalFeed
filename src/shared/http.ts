@@ -6,8 +6,13 @@ export const jsonOk = <T>(data: T, init?: ResponseInit) =>
 export const jsonCreated = <T>(data: T, init?: ResponseInit) =>
   NextResponse.json(data, { status: 201, ...init });
 
-export const jsonBadRequest = (error: string | { message: string; details?: unknown }) =>
-  NextResponse.json({ error: typeof error === 'string' ? { message: error } : error }, { status: 400 });
+export const jsonBadRequest = (
+  error: string | { message: string; details?: unknown; errors?: unknown }
+) =>
+  NextResponse.json(
+    { error: typeof error === "string" ? { message: error } : error },
+    { status: 400 }
+  );
 
 export const jsonNotFound = (message = "Not found.") =>
   NextResponse.json({ error: { message } }, { status: 404 });
