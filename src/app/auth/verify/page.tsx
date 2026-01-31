@@ -29,8 +29,11 @@ function VerifyContent() {
         if (response.ok) {
           setStatus("success");
           setMessage("Successfully logged in! Redirecting...");
+
+          // Force a full page reload instead of just router.push
+          // This ensures the main page re-runs auth check
           setTimeout(() => {
-            router.push("/");
+            window.location.href = "/";
           }, 1500);
         } else {
           const data = await response.json();
