@@ -28,7 +28,8 @@ export default function AdminLoginPage() {
             "[Admin Login] User is authenticated, redirecting to /admin"
           );
           // Already authenticated, redirect to admin dashboard
-          router.push("/admin");
+          // Use window.location for hard redirect
+          window.location.href = "/admin";
           return;
         }
 
