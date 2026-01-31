@@ -137,12 +137,39 @@ export const getMagicLinkRepository = () => {
 };
 
 // Push subscriptions are in-memory only
-let pushSubscriptionRepositoryInstance: InMemoryPushSubscriptionRepository | null = null;
+let pushSubscriptionRepositoryInstance: InMemoryPushSubscriptionRepository | null =
+  null;
 
 export const getPushSubscriptionRepository = () => {
   if (!pushSubscriptionRepositoryInstance) {
-    pushSubscriptionRepositoryInstance = new InMemoryPushSubscriptionRepository();
+    pushSubscriptionRepositoryInstance =
+      new InMemoryPushSubscriptionRepository();
   }
   return pushSubscriptionRepositoryInstance;
 };
 
+// Import new repositories
+import { InMemoryUserSettingsRepository } from "./in-memory-user-settings-repository";
+import { InMemoryLocationSharingRepository } from "./in-memory-location-sharing-repository";
+
+// User settings are in-memory only
+let userSettingsRepositoryInstance: InMemoryUserSettingsRepository | null =
+  null;
+
+export const getUserSettingsRepository = () => {
+  if (!userSettingsRepositoryInstance) {
+    userSettingsRepositoryInstance = new InMemoryUserSettingsRepository();
+  }
+  return userSettingsRepositoryInstance;
+};
+
+// Location sharing is in-memory only
+let locationSharingRepositoryInstance: InMemoryLocationSharingRepository | null =
+  null;
+
+export const getLocationSharingRepository = () => {
+  if (!locationSharingRepositoryInstance) {
+    locationSharingRepositoryInstance = new InMemoryLocationSharingRepository();
+  }
+  return locationSharingRepositoryInstance;
+};
