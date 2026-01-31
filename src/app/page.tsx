@@ -154,6 +154,14 @@ export default function Home() {
 
     checkAdminStatus();
     checkAuthStatus();
+
+    // Also check auth when window regains focus (e.g., after redirect from verify page)
+    const handleFocus = () => {
+      checkAuthStatus();
+    };
+
+    window.addEventListener("focus", handleFocus);
+    return () => window.removeEventListener("focus", handleFocus);
   }, []);
 
   useEffect(() => {
@@ -193,7 +201,7 @@ export default function Home() {
     }
   };
 
-  const handleAuthSuccess = (user: {
+  const handleAuthSuccess = async (user: {
     id: string;
     email: string;
     username?: string;
@@ -203,6 +211,17 @@ export default function Home() {
     setUserId(user.id);
     setUserEmail(user.email);
     setShowAuthModal(false);
+
+    // Load user settings after successful login
+    try {
+      const settingsResponse = await fetch("/api/users/settings");
+      if (settingsResponse.ok) {
+        const settingsData = await settingsResponse.json();
+        setFollowMeEnabled(settingsData.data.settings.followMeMode);
+      }
+    } catch (error) {
+      console.error("Failed to load user settings:", error);
+    }
   };
 
   const openView = (view: View) => {
