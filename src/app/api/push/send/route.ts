@@ -13,23 +13,35 @@ const SendPushSchema = z.object({
   userIds: z.array(z.string()).optional(), // If specified, only send to these users
 });
 
-// Configure web-push with VAPID keys
-if (process.env.VAPID_PRIVATE_KEY && process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY) {
-  webpush.setVapidDetails(
-    process.env.VAPID_SUBJECT || "mailto:admin@sightsignal.com",
-    process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY,
-    process.env.VAPID_PRIVATE_KEY
-  );
+// Lazy initialization of VAPID details
+let vapidConfigured = false;
+function ensureVapidConfigured() {
+  if (vapidConfigured) return;
+
+  const privateKey = process.env.VAPID_PRIVATE_KEY;
+  const publicKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
+  const subject = process.env.VAPID_SUBJECT || "mailto:admin@sightsignal.com";
+
+  if (!privateKey || !publicKey) {
+    throw new Error("VAPID keys not configured");
+  }
+
+  webpush.setVapidDetails(subject, publicKey, privateKey);
+  vapidConfigured = true;
 }
 
 export async function POST(request: NextRequest) {
   try {
+    // Configure VAPID details on first request (not at module load)
+    ensureVapidConfigured();
     // Parse request body
     const body = await request.json();
     const parsed = SendPushSchema.safeParse(body);
 
     if (!parsed.success) {
-      return jsonBadRequest(parsed.error.issues[0]?.message || "Invalid push notification data");
+      return jsonBadRequest(
+        parsed.error.issues[0]?.message || "Invalid push notification data"
+      );
     }
 
     const { title, body: messageBody, icon, url, tag, userIds } = parsed.data;
@@ -40,7 +52,9 @@ export async function POST(request: NextRequest) {
 
     // Filter by userIds if specified
     if (userIds && userIds.length > 0) {
-      subscriptions = subscriptions.filter((sub) => userIds.includes(sub.userId));
+      subscriptions = subscriptions.filter((sub) =>
+        userIds.includes(sub.userId)
+      );
     }
 
     if (subscriptions.length === 0) {
@@ -72,7 +86,9 @@ export async function POST(request: NextRequest) {
             const statusCode = (error as { statusCode?: number }).statusCode;
             if (statusCode === 410 || statusCode === 404) {
               await repo.delete(sub.id);
-              console.log(`[Push] Deleted expired subscription for user ${sub.userId}`);
+              console.log(
+                `[Push] Deleted expired subscription for user ${sub.userId}`
+              );
             }
           }
           return { success: false, userId: sub.userId };
@@ -80,7 +96,9 @@ export async function POST(request: NextRequest) {
       })
     );
 
-    const sent = results.filter((r) => r.status === "fulfilled" && r.value.success).length;
+    const sent = results.filter(
+      (r) => r.status === "fulfilled" && r.value.success
+    ).length;
     const failed = results.length - sent;
 
     console.log(`[Push] Sent ${sent} notifications, ${failed} failed`);
