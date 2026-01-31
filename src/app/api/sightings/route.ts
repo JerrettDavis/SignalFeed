@@ -235,6 +235,21 @@ export const POST = async (request: Request) => {
     });
   }
 
+  // Send push notification for new sighting (non-blocking)
+  const sighting = result.value;
+  fetch(`${new URL(request.url).origin}/api/push/send`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      title: "New Signal Reported",
+      body: sighting.description.slice(0, 100),
+      url: `/?sighting=${sighting.id}`,
+      tag: `sighting-${sighting.id}`,
+    }),
+  }).catch((error) => {
+    console.error("[Push] Failed to send notification:", error);
+  });
+
   // Invalidate all sightings caches on creation
   const { invalidateCache } = await import("@/shared/cache");
   invalidateCache("sightings:*");

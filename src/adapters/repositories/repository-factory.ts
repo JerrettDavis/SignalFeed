@@ -1,6 +1,10 @@
 import { inMemorySightingRepository } from "@/adapters/repositories/in-memory-sighting-repository";
 import { inMemoryGeofenceRepository } from "@/adapters/repositories/in-memory-geofence-repository";
 import { inMemorySubscriptionRepository } from "@/adapters/repositories/in-memory-subscription-repository";
+import { InMemoryCommentRepository } from "@/adapters/repositories/in-memory-comment-repository";
+import { InMemoryCredentialsRepository } from "@/adapters/repositories/in-memory-credentials-repository";
+import { InMemoryMagicLinkRepository } from "@/adapters/repositories/in-memory-magic-link-repository";
+import { InMemoryPushSubscriptionRepository } from "@/adapters/repositories/in-memory-push-subscription-repository";
 import { fileSightingRepository } from "@/adapters/repositories/file-sighting-repository";
 import { fileGeofenceRepository } from "@/adapters/repositories/file-geofence-repository";
 import { fileSubscriptionRepository } from "@/adapters/repositories/file-subscription-repository";
@@ -101,3 +105,44 @@ export const getSignalRepository = () => {
   }
   return inMemorySignalRepository();
 };
+
+// Comments are in-memory only for now
+let commentRepositoryInstance: InMemoryCommentRepository | null = null;
+
+export const getCommentRepository = () => {
+  if (!commentRepositoryInstance) {
+    commentRepositoryInstance = new InMemoryCommentRepository();
+  }
+  return commentRepositoryInstance;
+};
+
+// Credentials are in-memory only for now
+let credentialsRepositoryInstance: InMemoryCredentialsRepository | null = null;
+
+export const getCredentialsRepository = () => {
+  if (!credentialsRepositoryInstance) {
+    credentialsRepositoryInstance = new InMemoryCredentialsRepository();
+  }
+  return credentialsRepositoryInstance;
+};
+
+// Magic links are in-memory only
+let magicLinkRepositoryInstance: InMemoryMagicLinkRepository | null = null;
+
+export const getMagicLinkRepository = () => {
+  if (!magicLinkRepositoryInstance) {
+    magicLinkRepositoryInstance = new InMemoryMagicLinkRepository();
+  }
+  return magicLinkRepositoryInstance;
+};
+
+// Push subscriptions are in-memory only
+let pushSubscriptionRepositoryInstance: InMemoryPushSubscriptionRepository | null = null;
+
+export const getPushSubscriptionRepository = () => {
+  if (!pushSubscriptionRepositoryInstance) {
+    pushSubscriptionRepositoryInstance = new InMemoryPushSubscriptionRepository();
+  }
+  return pushSubscriptionRepositoryInstance;
+};
+

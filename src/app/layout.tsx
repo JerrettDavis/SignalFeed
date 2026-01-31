@@ -19,6 +19,13 @@ const bodyFont = Space_Grotesk({
 export const metadata: Metadata = {
   title: "SightSignal",
   description: "Map-first signals for local sightings, events, and hazards.",
+  manifest: "/manifest.json",
+  themeColor: "#0078ff",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "default",
+    title: "SightSignal",
+  },
 };
 
 export default function RootLayout({
@@ -27,9 +34,26 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className={`${displayFont.variable} ${bodyFont.variable}`}>
+    <html lang="en" className={`${displayFont.variable} ${bodyFont.variable}`} suppressHydrationWarning>
+      <head>
+        <link rel="manifest" href="/manifest.json" />
+        <meta name="theme-color" content="#0078ff" />
+        <link rel="apple-touch-icon" href="/icon-192.png" />
+      </head>
       <body className="antialiased">
         <ThemeProvider>{children}</ThemeProvider>
+        <script dangerouslySetInnerHTML={{
+          __html: `
+            if ('serviceWorker' in navigator) {
+              window.addEventListener('load', () => {
+                navigator.serviceWorker.register('/sw.js').then(
+                  registration => console.log('[SW] Registered:', registration.scope),
+                  error => console.error('[SW] Registration failed:', error)
+                );
+              });
+            }
+          `
+        }} />
       </body>
     </html>
   );

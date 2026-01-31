@@ -6,6 +6,10 @@ import { ReportForm } from "@/components/report-form";
 import { ClientGeofenceStudio } from "@/components/client-geofence-studio";
 import { ClientSightingsExplorer } from "@/components/client-sightings-explorer";
 import { SignalsBrowser } from "@/components/signals/SignalsBrowser";
+import { SightingDrilldown } from "@/components/sightings/SightingDrilldown";
+import { AuthModal } from "@/components/auth/AuthModal";
+import { UserDropdown } from "@/components/auth/UserDropdown";
+import { PushNotificationManager } from "@/components/push/PushNotificationManager";
 import { SightingSchema } from "@/contracts/sighting";
 import type { SightingCard } from "@/data/mock-sightings";
 import { categoryLabelById, typeLabelById } from "@/data/taxonomy";
@@ -54,6 +58,12 @@ export default function Home() {
   const [isAdmin, setIsAdmin] = useState(false);
   const [showWelcome, setShowWelcome] = useState(false);
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
+  const [selectedSightingId, setSelectedSightingId] = useState<string | null>(null);
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [userId, setUserId] = useState<string | undefined>(undefined);
+  const [userEmail, setUserEmail] = useState<string | undefined>(undefined);
+  const [showAuthModal, setShowAuthModal] = useState(false);
+  const [showUserDropdown, setShowUserDropdown] = useState(false);
 
   const loadSightings = useCallback(async () => {
     try {
@@ -80,6 +90,27 @@ export default function Home() {
   }, [loadSightings]);
 
   useEffect(() => {
+    const handler = () => {
+      // After report is submitted, switch to sightings view
+      setActiveView("sightings");
+      setMobileSidebarOpen(true);
+    };
+    window.addEventListener(EVENTS.reportFormClosed, handler);
+    return () => window.removeEventListener(EVENTS.reportFormClosed, handler);
+  }, []);
+
+  useEffect(() => {
+    // Listen for sighting selection to open drilldown
+    const handler = (event: Event) => {
+      const customEvent = event as CustomEvent<{ id: string }>;
+      setSelectedSightingId(customEvent.detail.id);
+    };
+    window.addEventListener(EVENTS.sightingSelected, handler);
+    return () => window.removeEventListener(EVENTS.sightingSelected, handler);
+  }, []);
+
+  // Check auth status
+  useEffect(() => {
     const checkAdminStatus = async () => {
       try {
         const response = await fetch("/api/admin/auth/verify");
@@ -88,7 +119,29 @@ export default function Home() {
         setIsAdmin(false);
       }
     };
-    void checkAdminStatus();
+
+    const checkAuthStatus = async () => {
+      try {
+        const response = await fetch("/api/auth/me");
+        if (response.ok) {
+          const data = await response.json();
+          setIsLoggedIn(true);
+          setUserId(data.data.user.id);
+          setUserEmail(data.data.user.email);
+        } else {
+          setIsLoggedIn(false);
+          setUserId(undefined);
+          setUserEmail(undefined);
+        }
+      } catch {
+        setIsLoggedIn(false);
+        setUserId(undefined);
+        setUserEmail(undefined);
+      }
+    };
+
+    checkAdminStatus();
+    checkAuthStatus();
   }, []);
 
   useEffect(() => {
@@ -106,6 +159,33 @@ export default function Home() {
 
   const showWelcomeWizard = () => {
     setShowWelcome(true);
+  };
+
+  const handleAuthClick = () => {
+    if (isLoggedIn) {
+      // Toggle dropdown
+      setShowUserDropdown(!showUserDropdown);
+    } else {
+      // Show auth modal
+      setShowAuthModal(true);
+    }
+  };
+
+  const handleLogout = async () => {
+    try {
+      await fetch("/api/auth/logout", { method: "POST" });
+      setIsLoggedIn(false);
+      setUserId(undefined);
+    } catch (error) {
+      console.error("Logout failed:", error);
+    }
+  };
+
+  const handleAuthSuccess = (user: { id: string; email: string; username?: string; role: string }) => {
+    setIsLoggedIn(true);
+    setUserId(user.id);
+    setUserEmail(user.email);
+    setShowAuthModal(false);
   };
 
   const openView = (view: View) => {
@@ -145,6 +225,7 @@ export default function Home() {
 
   return (
     <div className="fixed inset-0 flex flex-col bg-[color:var(--background)]">
+      <PushNotificationManager isLoggedIn={isLoggedIn} userId={userId} />
       {/* Top Bar */}
       <header className="relative flex items-center justify-between border-b border-[color:var(--border)] bg-[color:var(--surface-elevated)] px-4 py-3 shadow-[var(--shadow-sm)] z-30 flex-shrink-0">
         <div className="flex items-center gap-3">
@@ -171,8 +252,21 @@ export default function Home() {
             </svg>
           </button>
 
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[color:var(--accent-primary)] text-sm font-bold text-white">
-            SS
+          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[color:var(--accent-primary)] text-white">
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="18"
+              height="18"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2.5"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z" />
+              <circle cx="12" cy="12" r="3" />
+            </svg>
           </div>
           <div>
             <h1 className="text-sm font-semibold text-[color:var(--text-primary)]">
@@ -317,6 +411,52 @@ export default function Home() {
               </svg>
             </a>
           )}
+          {/* Auth Button - Login/Register with Dropdown */}
+          <div className="relative">
+            <button
+              onClick={handleAuthClick}
+              className="flex h-9 w-9 items-center justify-center rounded-lg text-[color:var(--text-secondary)] hover:bg-[color:var(--surface)] hover:text-[color:var(--text-primary)] transition"
+              title={isLoggedIn ? "Account" : "Login / Register"}
+            >
+              {isLoggedIn ? (
+                // Filled person icon when logged in
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  width="20"
+                  height="20"
+                  viewBox="0 0 24 24"
+                  fill="currentColor"
+                  stroke="none"
+                >
+                  <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 3c1.66 0 3 1.34 3 3s-1.34 3-3 3-3-1.34-3-3 1.34-3 3-3zm0 14.2c-2.5 0-4.71-1.28-6-3.22.03-1.99 4-3.08 6-3.08 1.99 0 5.97 1.09 6 3.08-1.29 1.94-3.5 3.22-6 3.22z"/>
+                </svg>
+              ) : (
+                // Outline person icon when not logged in
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  width="20"
+                  height="20"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2" />
+                  <circle cx="12" cy="7" r="4" />
+                </svg>
+              )}
+            </button>
+            {isLoggedIn && (
+              <UserDropdown 
+                isOpen={showUserDropdown} 
+                onClose={() => setShowUserDropdown(false)}
+                onSignOut={handleLogout}
+                userEmail={userEmail}
+              />
+            )}
+          </div>
           <ThemeToggle />
         </div>
       </header>
@@ -356,7 +496,7 @@ export default function Home() {
             <h2 className="text-lg font-semibold text-[color:var(--text-primary)]">
               {activeView === "signals" && "Signals"}
               {activeView === "sightings" && "Sightings"}
-              {activeView === "report" && "Report a Signal"}
+              {activeView === "report" && "Report a Sighting"}
               {activeView === "geofences" && "Geofences"}
             </h2>
             {/* Mobile Close Button */}
@@ -575,15 +715,15 @@ export default function Home() {
             </div>
           )}
 
-          {/* FAB - Create Signal */}
+          {/* FAB - Create Sighting */}
           <button
             onClick={() => {
               setActiveView("report");
               setMobileSidebarOpen(true);
             }}
             className="absolute bottom-24 right-6 flex h-14 w-14 items-center justify-center rounded-full bg-[color:var(--accent-primary)] text-white shadow-[var(--shadow-lg)] hover:bg-[color:var(--accent-hover)] transition-all hover:scale-105 active:scale-95 z-[100] pointer-events-auto"
-            title="Create new signal"
-            aria-label="Create new signal"
+            title="Report a sighting"
+            aria-label="Report a sighting"
           >
             <svg
               xmlns="http://www.w3.org/2000/svg"
@@ -602,6 +742,20 @@ export default function Home() {
           </button>
         </div>
       </main>
+
+      {/* Sighting Drilldown */}
+      <SightingDrilldown
+        sightingId={selectedSightingId}
+        onClose={() => setSelectedSightingId(null)}
+        userId={userId}
+      />
+
+      {/* Auth Modal */}
+      <AuthModal
+        isOpen={showAuthModal}
+        onClose={() => setShowAuthModal(false)}
+        onSuccess={handleAuthSuccess}
+      />
     </div>
   );
 }
