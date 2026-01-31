@@ -19,7 +19,10 @@ export default function AdminDashboard() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  console.log("[Admin Dashboard] Component mounted");
+
   useEffect(() => {
+    console.log("[Admin Dashboard] useEffect running");
     const fetchMetrics = async () => {
       try {
         setLoading(true);
