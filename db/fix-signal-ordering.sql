@@ -5,15 +5,15 @@
 -- FIX 1: Ensure "All Sightings" signal exists with proper configuration
 -- ============================================================================
 
--- Update or create the "All Sightings" signal with an earlier created_at timestamp
--- to ensure it appears first in database ordering
+-- Update or create the "All Sightings" signal with a future created_at timestamp
+-- to ensure it appears first in database ordering (which is created_at DESC - newest first)
 INSERT INTO signals (id, name, description, target, conditions, triggers, owner_id, is_active, created_at, updated_at)
 VALUES
   ('signal-all', 'All Sightings', 'All sightings across all areas',
    '{"kind":"global"}',
    '{}',
    ARRAY['new_sighting'],
-   'user-001', true, NOW() - INTERVAL '1 year', NOW())
+   'user-001', true, NOW() + INTERVAL '10 years', NOW())
 ON CONFLICT (id) DO UPDATE SET
   name = EXCLUDED.name,
   description = EXCLUDED.description,
@@ -21,7 +21,7 @@ ON CONFLICT (id) DO UPDATE SET
   conditions = EXCLUDED.conditions,
   triggers = EXCLUDED.triggers,
   is_active = EXCLUDED.is_active,
-  created_at = NOW() - INTERVAL '1 year',  -- Force earlier timestamp
+  created_at = NOW() + INTERVAL '10 years',  -- Force future timestamp to be first
   updated_at = EXCLUDED.updated_at;
 
 -- ============================================================================

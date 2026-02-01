@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useSignalNavigation } from "@/stores/signalNavigationStore";
+import { dispatchEvent, EVENTS } from "@/shared/events";
 
 interface Signal {
   id: string;
@@ -9,6 +10,10 @@ interface Signal {
   description: string | null;
   sightingCount?: number;
   subscriptionCount?: number;
+  target?: {
+    kind: string;
+    geofenceId?: string;
+  };
 }
 
 export default function SignalListSidebar() {
@@ -26,11 +31,54 @@ export default function SignalListSidebar() {
       const res = await fetch("/api/signals");
       if (!res.ok) throw new Error("Failed to fetch signals");
       const data = await res.json();
-      setSignals(data.data || []);
+
+      // Sort signals - "All Sightings" (signal-all) first, then others
+      const sortedSignals = [...(data.data || [])].sort((a, b) => {
+        if (a.id === "signal-all") return -1;
+        if (b.id === "signal-all") return 1;
+        return 0;
+      });
+
+      setSignals(sortedSignals);
     } catch (error) {
       console.error("Error fetching signals:", error);
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function handleSignalClick(signal: Signal) {
+    console.log(
+      "[SignalListSidebar] Signal clicked:",
+      signal.name,
+      signal.target
+    );
+
+    // Navigate to signal to open sightings sidebar
+    navigateToSignal(signal.id);
+
+    // If signal has a geofence, fetch and display it on the map
+    if (signal.target?.kind === "geofence" && signal.target.geofenceId) {
+      try {
+        const response = await fetch(
+          `/api/geofences/${signal.target.geofenceId}`
+        );
+        if (response.ok) {
+          const data = await response.json();
+          console.log("[SignalListSidebar] Geofence data received:", data.data);
+          dispatchEvent(EVENTS.geofenceSelected, data.data);
+        } else if (response.status === 404) {
+          console.warn(`Geofence ${signal.target.geofenceId} not found`);
+        } else {
+          console.error(`Failed to fetch geofence: ${response.status}`);
+        }
+      } catch (error) {
+        console.error("Failed to fetch geofence:", error);
+      }
+    } else {
+      console.log(
+        `[SignalListSidebar] Signal "${signal.name}" has ${signal.target?.kind || "unknown"} target - skipping geofence display`
+      );
     }
   }
 
@@ -61,7 +109,7 @@ export default function SignalListSidebar() {
         {signals.map((signal) => (
           <button
             key={signal.id}
-            onClick={() => navigateToSignal(signal.id)}
+            onClick={() => handleSignalClick(signal)}
             className={`w-full p-4 text-left hover:bg-[color:var(--surface)] transition-colors border-b border-[color:var(--border)] ${
               selectedSignal === signal.id
                 ? "bg-[color:var(--surface)] border-l-4 border-l-[color:var(--accent-primary)]"
@@ -69,6 +117,7 @@ export default function SignalListSidebar() {
             }`}
           >
             <div className="font-medium text-[color:var(--text-primary)]">
+              {signal.id === "signal-all" && "📌 "}
               {signal.name}
             </div>
             {signal.description && (
