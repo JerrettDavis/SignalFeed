@@ -10,7 +10,22 @@ export const runtime = "nodejs";
 
 export const GET = async () => {
   try {
-    await requireAuth();
+    console.log("[Admin Metrics] Starting metrics fetch...");
+
+    // Check auth with better error handling
+    try {
+      await requireAuth();
+      console.log("[Admin Metrics] Auth check passed");
+    } catch (authError) {
+      console.error("[Admin Metrics] Auth failed:", authError);
+      return new Response(
+        JSON.stringify({
+          error: "Unauthorized",
+          message: "Admin authentication required",
+        }),
+        { status: 401, headers: { "Content-Type": "application/json" } }
+      );
+    }
 
     const sightingRepo = getSightingRepository();
     const geofenceRepo = getGeofenceRepository();
@@ -52,6 +67,7 @@ export const GET = async () => {
       subscriptions: allSubscriptions.length,
     };
 
+    console.log("[Admin Metrics] Returning metrics successfully");
     return jsonOk(metrics);
   } catch (error) {
     console.error("[Admin Metrics] Fatal error:", error);
