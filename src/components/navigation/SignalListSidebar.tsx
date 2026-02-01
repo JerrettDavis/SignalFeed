@@ -66,6 +66,14 @@ export default function SignalListSidebar() {
         if (response.ok) {
           const data = await response.json();
           console.log("[SignalListSidebar] Geofence data received:", data.data);
+          console.log(
+            "[SignalListSidebar] Polygon structure:",
+            data.data?.polygon
+          );
+          console.log(
+            "[SignalListSidebar] Points array:",
+            data.data?.polygon?.points
+          );
           dispatchEvent(EVENTS.geofenceSelected, data.data);
         } else if (response.status === 404) {
           console.warn(`Geofence ${signal.target.geofenceId} not found`);
