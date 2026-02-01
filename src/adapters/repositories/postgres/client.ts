@@ -25,7 +25,11 @@ export const getSql = (): SqlClient => {
     "[PostgreSQL Client] Creating new connection to:",
     connectionString.replace(/:[^:@]+@/, ":****@")
   );
-  const sql = postgres(connectionString, { max: 2 });
+  const sql = postgres(connectionString, {
+    max: 10, // Increased from 2 to handle concurrent requests
+    idle_timeout: 20, // Close idle connections after 20s
+    connect_timeout: 10, // Timeout connection attempts after 10s
+  });
   globalAny.__signalfeed_sql = sql;
   return sql;
 };
