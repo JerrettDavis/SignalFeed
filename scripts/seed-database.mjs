@@ -382,7 +382,7 @@ async function seedSubscriptions() {
   const subscriptions = [
     ['seed-subscription-001', 'alerts@example.com', 'geofence', 'seed-geofence-001', ['cat-nature'], ['type-birds'], 'all'],
     ['seed-subscription-002', 'safety@tulsa.local', 'geofence', 'seed-geofence-008', ['cat-public-safety', 'cat-hazards'], ['type-road-hazards', 'type-suspicious-activity'], 'vetted'],
-    ['seed-subscription-003', 'downtown@resident.com', 'geofence', 'seed-geofence-002', ['cat-hazards', 'cat-transportation'], ['type-roadwork', 'type-road-hazards'], 'all'],
+    ['seed-subscription-003', 'downtown@resident.com', 'geofence', 'seed-geofence-011', ['cat-hazards', 'cat-transportation'], ['type-roadwork', 'type-road-hazards'], 'all'],
   ];
 
   for (const [id, email, targetKind, geofenceId, categoryIds, typeIds, trustLevel] of subscriptions) {
@@ -407,7 +407,7 @@ async function seedSignals() {
   const baseTime = '2026-01-24T09:00:00.000Z';
   const signals = [
     ['seed-signal-001', 'School Zone Safety Alerts', 'Critical safety alerts near Edison High School', 'seed-user-001', 'geofence', 'seed-geofence-008', ['new_sighting'], { categoryIds: ['cat-public-safety', 'cat-hazards'], importance: 'high' }, true],
-    ['seed-signal-002', 'Downtown Traffic Monitoring', 'Traffic and road hazard alerts for downtown commuters', 'seed-user-002', 'geofence', 'seed-geofence-002', ['new_sighting', 'score_threshold'], { categoryIds: ['cat-transportation', 'cat-infrastructure'], scoreThreshold: 3 }, true],
+    ['seed-signal-002', 'Downtown Traffic Monitoring', 'Traffic and road hazard alerts for downtown commuters', 'seed-user-002', 'geofence', 'seed-geofence-011', ['new_sighting', 'score_threshold'], { categoryIds: ['cat-transportation', 'cat-infrastructure'], scoreThreshold: 3 }, true],
     ['seed-signal-003', 'Wildlife in Gathering Place', 'Wildlife sightings in Gathering Place Park', 'seed-user-003', 'geofence', 'seed-geofence-004', ['new_sighting', 'sighting_confirmed'], { categoryIds: ['cat-wildlife'] }, true],
     ['seed-signal-004', 'Arts District Events', 'Community events and activities in the Arts District', 'seed-user-001', 'geofence', 'seed-geofence-006', ['new_sighting'], { categoryIds: ['cat-community-events', 'cat-market-activity'] }, true],
     ['seed-signal-005', 'Emergency Alerts - Citywide', 'High-priority emergency alerts across all of Tulsa', 'seed-user-admin', 'global', null, ['new_sighting'], { categoryIds: ['cat-public-safety'], importance: 'high' }, true],
