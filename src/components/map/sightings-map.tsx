@@ -152,7 +152,7 @@ export const SightingsMap = ({
 
       map.on("load", () => {
         console.log("Map loaded, mapRef will be set");
-        
+
         // Add source with clustering enabled
         map.addSource("sightings", {
           type: "geojson",
@@ -728,8 +728,17 @@ export const SightingsMap = ({
   useEffect(() => {
     const map = mapRef.current;
     if (!map || !selectedGeofence) {
+      console.log("[SightingsMap] No map or selectedGeofence:", {
+        hasMap: !!map,
+        hasGeofence: !!selectedGeofence,
+      });
       return;
     }
+
+    console.log(
+      "[SightingsMap] Displaying selected geofence:",
+      selectedGeofence
+    );
 
     // Ensure style is loaded before manipulating layers
     if (!map.isStyleLoaded()) {
@@ -739,8 +748,13 @@ export const SightingsMap = ({
 
     const points = selectedGeofence.polygon.points;
     if (points.length === 0) {
+      console.warn("[SightingsMap] Geofence has no points");
       return;
     }
+
+    console.log(
+      `[SightingsMap] Rendering geofence with ${points.length} points`
+    );
 
     // Calculate bounds
     const lngs = points.map((p) => p.lng);
@@ -879,10 +893,15 @@ export const SightingsMap = ({
 
     let mapClickHandler: ((e: maplibregl.MapMouseEvent) => void) | null = null;
 
-    const createOrUpdateMarker = async (lng: number, lat: number, flyTo = false, animate = false) => {
+    const createOrUpdateMarker = async (
+      lng: number,
+      lat: number,
+      flyTo = false,
+      animate = false
+    ) => {
       try {
         const maplibre = await loadMaplibre();
-        
+
         // Create or update marker
         if (!reportMarkerRef.current) {
           const el = document.createElement("div");
@@ -892,12 +911,13 @@ export const SightingsMap = ({
           el.style.cursor = "grab";
           el.style.zIndex = "1000";
           el.style.pointerEvents = "auto";
-          
+
           // Add drop animation if requested
           if (animate) {
-            el.style.animation = "pinDrop 0.6s cubic-bezier(0.34, 1.56, 0.64, 1)";
+            el.style.animation =
+              "pinDrop 0.6s cubic-bezier(0.34, 1.56, 0.64, 1)";
           }
-          
+
           el.innerHTML = `
             <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" fill="#f2c94c" stroke="#0c1a24" stroke-width="2" style="filter: drop-shadow(0 4px 6px rgba(0,0,0,0.3));">
               <path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z" />
@@ -931,12 +951,12 @@ export const SightingsMap = ({
           });
 
           reportMarkerRef.current = marker;
-          
+
           // Enable map click to place pin (but not on the marker itself)
           mapClickHandler = (e: maplibregl.MapMouseEvent) => {
             // Check if click is on the marker element
             const target = e.originalEvent.target as HTMLElement;
-            if (target.closest('.report-marker')) {
+            if (target.closest(".report-marker")) {
               return;
             }
             // Animate pin movement
@@ -944,7 +964,7 @@ export const SightingsMap = ({
             setTimeout(() => {
               el.style.animation = "none";
             }, 400);
-            
+
             marker.setLngLat(e.lngLat);
             dispatchEvent(EVENTS.reportLocationUpdated, {
               lat: e.lngLat.lat,
@@ -972,7 +992,7 @@ export const SightingsMap = ({
             essential: true,
           });
         }
-        
+
         // Dispatch update
         dispatchEvent(EVENTS.reportLocationUpdated, {
           lat,
@@ -989,7 +1009,7 @@ export const SightingsMap = ({
         map.once("load", () => {
           const center = map.getCenter();
           const currentZoom = map.getZoom();
-          
+
           // Zoom in with fly animation
           map.flyTo({
             center: [center.lng, center.lat],
@@ -997,7 +1017,7 @@ export const SightingsMap = ({
             duration: 1000,
             essential: true,
           });
-          
+
           // Drop pin after slight delay for dramatic effect
           setTimeout(() => {
             void createOrUpdateMarker(center.lng, center.lat, false, true);
@@ -1007,7 +1027,7 @@ export const SightingsMap = ({
         // Map already loaded
         const center = map.getCenter();
         const currentZoom = map.getZoom();
-        
+
         // Zoom in with fly animation
         map.flyTo({
           center: [center.lng, center.lat],
@@ -1015,7 +1035,7 @@ export const SightingsMap = ({
           duration: 1000,
           essential: true,
         });
-        
+
         // Drop pin after slight delay for dramatic effect
         setTimeout(() => {
           void createOrUpdateMarker(center.lng, center.lat, false, true);
@@ -1024,7 +1044,10 @@ export const SightingsMap = ({
     };
 
     const handleLocationSet = async (event: Event) => {
-      const detail = (event as CustomEvent).detail as { lat: number; lng: number };
+      const detail = (event as CustomEvent).detail as {
+        lat: number;
+        lng: number;
+      };
       await createOrUpdateMarker(detail.lng, detail.lat, true, true);
     };
 
@@ -1042,7 +1065,7 @@ export const SightingsMap = ({
     window.addEventListener(EVENTS.reportFormOpened, handleFormOpened);
     window.addEventListener(EVENTS.reportLocationSet, handleLocationSet);
     window.addEventListener(EVENTS.reportFormClosed, handleFormClosed);
-    
+
     return () => {
       window.removeEventListener(EVENTS.reportFormOpened, handleFormOpened);
       window.removeEventListener(EVENTS.reportLocationSet, handleLocationSet);

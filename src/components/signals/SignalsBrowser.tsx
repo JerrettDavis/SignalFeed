@@ -10,6 +10,8 @@ export function SignalsBrowser() {
   const [filter, setFilter] = useState<"all" | "active" | "inactive">("active");
 
   const handleSignalClick = async (signal: Signal) => {
+    console.log("[SignalsBrowser] Signal clicked:", signal.name, signal.target);
+
     // Only zoom if the signal has a geofence target
     if (signal.target.kind === "geofence") {
       try {
@@ -18,6 +20,7 @@ export function SignalsBrowser() {
         );
         if (response.ok) {
           const data = await response.json();
+          console.log("[SignalsBrowser] Geofence data received:", data.data);
           dispatchEvent(EVENTS.geofenceSelected, data.data);
         } else if (response.status === 404) {
           console.warn(
@@ -29,8 +32,11 @@ export function SignalsBrowser() {
       } catch (error) {
         console.error("Failed to fetch geofence:", error);
       }
+    } else {
+      console.log(
+        `[SignalsBrowser] Signal "${signal.name}" has ${signal.target.kind} target - skipping geofence display`
+      );
     }
-    // For polygon or global targets, we could add zoom logic later
   };
 
   useEffect(() => {
