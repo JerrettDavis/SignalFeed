@@ -64,6 +64,13 @@ export function SignalsBrowser() {
     return true;
   });
 
+  // Sort signals: "All Sightings" (signal-all) first, then others
+  const sortedSignals = [...filteredSignals].sort((a, b) => {
+    if (a.id === "signal-all") return -1;
+    if (b.id === "signal-all") return 1;
+    return 0;
+  });
+
   const getTargetLabel = (signal: Signal) => {
     switch (signal.target.kind) {
       case "global":
@@ -168,7 +175,7 @@ export function SignalsBrowser() {
             My Signals
           </h3>
           <span className="text-xs text-[color:var(--text-tertiary)]">
-            {filteredSignals.length} found
+            {sortedSignals.length} found
           </span>
         </div>
 
@@ -190,7 +197,7 @@ export function SignalsBrowser() {
           </div>
         ) : (
           <div className="space-y-2">
-            {filteredSignals.map((signal) => (
+            {sortedSignals.map((signal) => (
               <div
                 key={signal.id}
                 onClick={() => handleSignalClick(signal)}
@@ -199,6 +206,7 @@ export function SignalsBrowser() {
                 <div className="flex items-start justify-between gap-2">
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-medium text-[color:var(--text-primary)] truncate">
+                      {signal.id === "signal-all" && "📌 "}
                       {signal.name}
                     </p>
                     <p className="text-xs text-[color:var(--text-secondary)] mt-1">
