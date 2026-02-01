@@ -78,6 +78,12 @@ export const POST = async (request: Request) => {
     return response;
   } catch (error) {
     console.error("Error verifying passkey:", error);
+    console.error("Error details:", {
+      message: error instanceof Error ? error.message : String(error),
+      stack: error instanceof Error ? error.stack : undefined,
+      RP_ID,
+      ORIGIN,
+    });
     return jsonServerError("Failed to verify passkey");
   }
 };

@@ -38,6 +38,7 @@ export const PasskeyEnrollment = ({
 
       const options = await optionsResponse.json();
 
+      // SimpleWebAuthn expects the options directly, not wrapped
       const credential = await startRegistration(options.data);
 
       const verifyResponse = await fetch("/api/auth/passkey/register/verify", {
