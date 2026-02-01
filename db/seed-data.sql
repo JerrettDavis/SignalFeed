@@ -118,14 +118,14 @@ ON CONFLICT (id) DO NOTHING;
 -- ============================================================================
 
 -- "All Sightings" - Global signal that matches everything
--- Created with earlier timestamp to ensure it's first in database ordering
+-- Created with future timestamp to ensure it's first in database ordering (created_at DESC)
 INSERT INTO signals (id, name, description, target, conditions, triggers, owner_id, is_active, created_at, updated_at)
 VALUES
   ('signal-all', 'All Sightings', 'All sightings across all areas',
    '{"kind":"global"}',
    '{}',
    ARRAY['new_sighting'],
-   'user-001', true, NOW() - INTERVAL '1 year', NOW())
+   'user-001', true, NOW() + INTERVAL '10 years', NOW())
 ON CONFLICT (id) DO UPDATE SET
   name = EXCLUDED.name,
   description = EXCLUDED.description,
