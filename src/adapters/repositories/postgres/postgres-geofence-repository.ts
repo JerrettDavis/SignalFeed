@@ -7,11 +7,42 @@ import type {
 import { polygonWithinPolygon } from "@/shared/geo";
 import { getSql } from "@/adapters/repositories/postgres/client";
 
+/**
+ * Normalize polygon data from database to domain format
+ * Handles both:
+ * - Domain format: { points: [{lat, lng}, ...] }
+ * - GeoJSON format: { type: "Polygon", coordinates: [[[lng, lat], ...]] }
+ */
+const normalizePolygon = (polygonData: unknown): Polygon => {
+  const data = polygonData as Record<string, unknown>;
+
+  // Already in domain format with points array
+  if (data.points && Array.isArray(data.points)) {
+    return data as Polygon;
+  }
+
+  // GeoJSON format - convert to domain format
+  if (
+    data.type === "Polygon" &&
+    data.coordinates &&
+    Array.isArray(data.coordinates)
+  ) {
+    const coords = data.coordinates as number[][][];
+    // GeoJSON coordinates are [lng, lat], we need {lat, lng}
+    const points = coords[0].map(([lng, lat]) => ({ lat, lng }));
+    return { points };
+  }
+
+  // Fallback - return empty polygon
+  console.warn("Unknown polygon format:", data);
+  return { points: [] };
+};
+
 const mapRow = (row: Record<string, unknown>): Geofence => ({
   id: row.id as GeofenceId,
   name: String(row.name ?? ""),
   visibility: row.visibility as Geofence["visibility"],
-  polygon: row.polygon as Polygon,
+  polygon: normalizePolygon(row.polygon),
   createdAt: new Date(row.created_at as string).toISOString(),
   ownerId: row.owner_id ? String(row.owner_id) : undefined,
 });
