@@ -3,16 +3,21 @@
 import { useState, useEffect } from "react";
 import type { Signal } from "@/domain/signals/signal";
 import { dispatchEvent, EVENTS } from "@/shared/events";
+import { useSignalNavigation } from "@/stores/signalNavigationStore";
 
 export function SignalsBrowser() {
   const [signals, setSignals] = useState<Signal[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [filter, setFilter] = useState<"all" | "active" | "inactive">("active");
+  const { navigateToSignal } = useSignalNavigation();
 
   const handleSignalClick = async (signal: Signal) => {
     console.log("[SignalsBrowser] Signal clicked:", signal.name, signal.target);
 
-    // Only zoom if the signal has a geofence target
+    // Navigate to signal to open sightings sidebar
+    navigateToSignal(signal.id);
+
+    // If signal has a geofence, fetch and display it on the map
     if (signal.target.kind === "geofence") {
       try {
         const response = await fetch(
