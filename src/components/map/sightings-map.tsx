@@ -739,6 +739,7 @@ export const SightingsMap = ({
       "[SightingsMap] Displaying selected geofence:",
       selectedGeofence
     );
+    console.log("[SightingsMap] Polygon:", selectedGeofence.polygon);
 
     // Ensure style is loaded before manipulating layers
     if (!map.isStyleLoaded()) {
@@ -746,9 +747,21 @@ export const SightingsMap = ({
       return;
     }
 
+    // Defensive check for polygon structure
+    if (!selectedGeofence.polygon || !selectedGeofence.polygon.points) {
+      console.error("[SightingsMap] Invalid geofence structure:", {
+        hasPolygon: !!selectedGeofence.polygon,
+        hasPoints: !!selectedGeofence.polygon?.points,
+        geofence: selectedGeofence,
+      });
+      return;
+    }
+
     const points = selectedGeofence.polygon.points;
-    if (points.length === 0) {
-      console.warn("[SightingsMap] Geofence has no points");
+    if (!Array.isArray(points) || points.length === 0) {
+      console.warn(
+        "[SightingsMap] Geofence has no points or invalid points array"
+      );
       return;
     }
 
