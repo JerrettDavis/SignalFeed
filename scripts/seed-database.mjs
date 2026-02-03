@@ -234,66 +234,66 @@ async function seedGeofences() {
 
   const baseTime = '2026-01-24T09:00:00.000Z';
   
-  // Accurate Tulsa, OK geofence coordinates
+  // Accurate Tulsa, OK geofence coordinates with descriptive names including location
   const geofences = [
     // Cherry Street District (around 15th & Peoria)
-    ['seed-geofence-003', 'Cherry Street District', 'public', [
+    ['seed-geofence-003', 'Cherry Street District, Tulsa, OK', 'public', [
       [36.1547, -95.9810],
       [36.1547, -95.9770],
       [36.1507, -95.9770],
       [36.1507, -95.9810]
     ]],
-    
+
     // Gathering Place Park (riverside park)
-    ['seed-geofence-004', 'Gathering Place Park', 'public', [
+    ['seed-geofence-004', 'Gathering Place Park, Tulsa, OK', 'public', [
       [36.1410, -95.9785],
       [36.1410, -95.9735],
       [36.1340, -95.9735],
       [36.1340, -95.9785]
     ]],
-    
+
     // Brady Arts District (downtown arts area)
-    ['seed-geofence-006', 'Brady Arts District', 'public', [
+    ['seed-geofence-006', 'Brady Arts District, Tulsa, OK', 'public', [
       [36.1610, -95.9910],
       [36.1610, -95.9860],
       [36.1560, -95.9860],
       [36.1560, -95.9910]
     ]],
-    
+
     // Edison High School area (31st & Lewis)
-    ['seed-geofence-008', 'Edison High School Zone', 'public', [
+    ['seed-geofence-008', 'Edison High School Zone, Tulsa, OK', 'public', [
       [36.1450, -95.9560],
       [36.1450, -95.9510],
       [36.1410, -95.9510],
       [36.1410, -95.9560]
     ]],
-    
+
     // River Parks Trail (along Arkansas River)
-    ['seed-geofence-009', 'River Parks Trail', 'public', [
+    ['seed-geofence-009', 'River Parks Trail, Tulsa, OK', 'public', [
       [36.1590, -95.9790],
       [36.1590, -95.9740],
       [36.1320, -95.9740],
       [36.1320, -95.9790]
     ]],
-    
+
     // Brookside District (around 33rd to 51st & Peoria)
-    ['seed-geofence-010', 'Brookside District', 'public', [
+    ['seed-geofence-010', 'Brookside District, Tulsa, OK', 'public', [
       [36.1290, -95.9810],
       [36.1290, -95.9760],
       [36.1180, -95.9760],
       [36.1180, -95.9810]
     ]],
-    
-    // Downtown Tulsa (main business district)
+
+    // Downtown Tulsa (main business district) - already includes location
     ['seed-geofence-011', 'Downtown Tulsa', 'public', [
       [36.1580, -95.9950],
       [36.1580, -95.9880],
       [36.1490, -95.9880],
       [36.1490, -95.9950]
     ]],
-    
+
     // Midtown corridor (private - around 21st & Utica)
-    ['seed-geofence-013', 'Midtown Corridor', 'private', [
+    ['seed-geofence-013', 'Midtown Corridor, Tulsa, OK', 'private', [
       [36.1400, -95.9740],
       [36.1400, -95.9690],
       [36.1340, -95.9690],

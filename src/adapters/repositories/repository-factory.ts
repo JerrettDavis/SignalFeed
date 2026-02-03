@@ -172,6 +172,19 @@ export const getPushSubscriptionRepository = () => {
 // Import new repositories
 import { InMemoryUserSettingsRepository } from "./in-memory-user-settings-repository";
 import { InMemoryLocationSharingRepository } from "./in-memory-location-sharing-repository";
+import { inMemoryFlairRepository } from "./in-memory-flair-repository";
+import { inMemorySightingFlairRepository } from "./in-memory-sighting-flair-repository";
+import { inMemoryCategoryDecayConfigRepository } from "./in-memory-category-decay-config-repository";
+import { InMemoryUserPrivacySettingsRepository } from "./in-memory-user-privacy-settings-repository";
+import { InMemoryUserCategoryInteractionRepository } from "./in-memory-user-category-interaction-repository";
+import { InMemoryUserSignalPreferenceRepository } from "./in-memory-user-signal-preference-repository";
+import { InMemorySignalActivitySnapshotRepository } from "./in-memory-signal-activity-snapshot-repository";
+import { InMemorySignalViewSessionRepository } from "./in-memory-signal-view-session-repository";
+import { buildPostgresUserPrivacySettingsRepository } from "./postgres/postgres-user-privacy-settings-repository";
+import { buildPostgresUserCategoryInteractionRepository } from "./postgres/postgres-user-category-interaction-repository";
+import { buildPostgresUserSignalPreferenceRepository } from "./postgres/postgres-user-signal-preference-repository";
+import { buildPostgresSignalActivitySnapshotRepository } from "./postgres/postgres-signal-activity-snapshot-repository";
+import { buildPostgresSignalViewSessionRepository } from "./postgres/postgres-signal-view-session-repository";
 
 // User settings are in-memory only
 let userSettingsRepositoryInstance: InMemoryUserSettingsRepository | null =
@@ -211,4 +224,119 @@ export const getPasskeyRepository = () => {
     passkeyRepositoryInstance = buildPostgresPasskeyRepository(getSql());
   }
   return passkeyRepositoryInstance;
+};
+
+// Flair repository - in-memory only for now
+export const getFlairRepository = () => {
+  return inMemoryFlairRepository();
+};
+
+// Sighting flair repository - in-memory only for now
+export const getSightingFlairRepository = () => {
+  return inMemorySightingFlairRepository();
+};
+
+// Category decay config repository - in-memory only for now
+export const getCategoryDecayConfigRepository = () => {
+  return inMemoryCategoryDecayConfigRepository();
+};
+
+// User privacy settings repository - supports postgres
+let userPrivacySettingsRepositoryInstance:
+  | InMemoryUserPrivacySettingsRepository
+  | ReturnType<typeof buildPostgresUserPrivacySettingsRepository>
+  | null = null;
+
+export const getUserPrivacySettingsRepository = () => {
+  if (!userPrivacySettingsRepositoryInstance) {
+    const store = resolveStoreType();
+    if (store === "postgres") {
+      userPrivacySettingsRepositoryInstance =
+        buildPostgresUserPrivacySettingsRepository(getSql());
+    } else {
+      userPrivacySettingsRepositoryInstance =
+        new InMemoryUserPrivacySettingsRepository();
+    }
+  }
+  return userPrivacySettingsRepositoryInstance;
+};
+
+// User category interaction repository - supports postgres
+let userCategoryInteractionRepositoryInstance:
+  | InMemoryUserCategoryInteractionRepository
+  | ReturnType<typeof buildPostgresUserCategoryInteractionRepository>
+  | null = null;
+
+export const getUserCategoryInteractionRepository = () => {
+  if (!userCategoryInteractionRepositoryInstance) {
+    const store = resolveStoreType();
+    if (store === "postgres") {
+      userCategoryInteractionRepositoryInstance =
+        buildPostgresUserCategoryInteractionRepository(getSql());
+    } else {
+      userCategoryInteractionRepositoryInstance =
+        new InMemoryUserCategoryInteractionRepository();
+    }
+  }
+  return userCategoryInteractionRepositoryInstance;
+};
+
+// User signal preference repository - supports postgres
+let userSignalPreferenceRepositoryInstance:
+  | InMemoryUserSignalPreferenceRepository
+  | ReturnType<typeof buildPostgresUserSignalPreferenceRepository>
+  | null = null;
+
+export const getUserSignalPreferenceRepository = () => {
+  if (!userSignalPreferenceRepositoryInstance) {
+    const store = resolveStoreType();
+    if (store === "postgres") {
+      userSignalPreferenceRepositoryInstance =
+        buildPostgresUserSignalPreferenceRepository(getSql());
+    } else {
+      userSignalPreferenceRepositoryInstance =
+        new InMemoryUserSignalPreferenceRepository();
+    }
+  }
+  return userSignalPreferenceRepositoryInstance;
+};
+
+// Signal activity snapshot repository - supports postgres
+let signalActivitySnapshotRepositoryInstance:
+  | InMemorySignalActivitySnapshotRepository
+  | ReturnType<typeof buildPostgresSignalActivitySnapshotRepository>
+  | null = null;
+
+export const getSignalActivitySnapshotRepository = () => {
+  if (!signalActivitySnapshotRepositoryInstance) {
+    const store = resolveStoreType();
+    if (store === "postgres") {
+      signalActivitySnapshotRepositoryInstance =
+        buildPostgresSignalActivitySnapshotRepository(getSql());
+    } else {
+      signalActivitySnapshotRepositoryInstance =
+        new InMemorySignalActivitySnapshotRepository();
+    }
+  }
+  return signalActivitySnapshotRepositoryInstance;
+};
+
+// Signal view session repository - supports postgres
+let signalViewSessionRepositoryInstance:
+  | InMemorySignalViewSessionRepository
+  | ReturnType<typeof buildPostgresSignalViewSessionRepository>
+  | null = null;
+
+export const getSignalViewSessionRepository = () => {
+  if (!signalViewSessionRepositoryInstance) {
+    const store = resolveStoreType();
+    if (store === "postgres") {
+      signalViewSessionRepositoryInstance =
+        buildPostgresSignalViewSessionRepository(getSql());
+    } else {
+      signalViewSessionRepositoryInstance =
+        new InMemorySignalViewSessionRepository();
+    }
+  }
+  return signalViewSessionRepositoryInstance;
 };

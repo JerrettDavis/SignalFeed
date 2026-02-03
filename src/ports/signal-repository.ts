@@ -23,4 +23,8 @@ export type SignalRepository = {
   update: (signal: Signal) => Promise<void>;
   delete: (id: SignalId) => Promise<void>;
   deleteMany: (ids: SignalId[]) => Promise<void>;
+
+  // Analytics methods
+  incrementViewCount: (id: SignalId) => Promise<void>;
+  updateAnalytics: (id: SignalId, analytics: Partial<Signal["analytics"]>) => Promise<void>;
 };

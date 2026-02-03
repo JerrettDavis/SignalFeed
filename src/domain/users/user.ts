@@ -1,4 +1,5 @@
 import { err, ok, type DomainError, type Result } from "@/shared/result";
+import { type MembershipTier } from "./membership-tier";
 
 export type UserId = string & { readonly __brand: "UserId" };
 
@@ -11,11 +12,14 @@ export type User = {
   username?: string;
   role: UserRole;
   status: UserStatus;
+  membershipTier: MembershipTier;
   createdAt: string;
   updatedAt: string;
 };
 
-export type NewUser = Omit<User, "id" | "createdAt" | "updatedAt">;
+export type NewUser = Omit<User, "id" | "createdAt" | "updatedAt" | "membershipTier"> & {
+  membershipTier?: MembershipTier;
+};
 export type UpdateUser = Partial<Omit<NewUser, "email">>;
 
 /**
@@ -86,6 +90,7 @@ export const createUser = (
     username: data.username,
     role: data.role || "user",
     status: data.status || "active",
+    membershipTier: data.membershipTier || "free",
     createdAt: now,
     updatedAt: now,
   });

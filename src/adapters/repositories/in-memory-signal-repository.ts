@@ -120,5 +120,34 @@ export const inMemorySignalRepository = (): SignalRepository => {
         subscriptionCounts.delete(id);
       });
     },
+
+    async incrementViewCount(id) {
+      const signal = store.get(id);
+      if (signal) {
+        const updated = {
+          ...signal,
+          analytics: {
+            ...signal.analytics,
+            viewCount: signal.analytics.viewCount + 1,
+            lastViewedAt: new Date().toISOString(),
+          },
+        };
+        store.set(id, updated);
+      }
+    },
+
+    async updateAnalytics(id, analytics) {
+      const signal = store.get(id);
+      if (signal) {
+        const updated = {
+          ...signal,
+          analytics: {
+            ...signal.analytics,
+            ...analytics,
+          },
+        };
+        store.set(id, updated);
+      }
+    },
   };
 };

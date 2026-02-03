@@ -6,6 +6,19 @@ import { err, ok, type DomainError, type Result } from "@/shared/result";
 export type SignalId = string & { readonly __brand: "SignalId" };
 export type TriggerId = string & { readonly __brand: "TriggerId" };
 
+// Signal classification types
+export type SignalClassification = "official" | "community" | "personal" | "verified";
+
+// Analytics tracking for signals
+export type SignalAnalytics = {
+  viewCount: number;
+  uniqueViewers: number;
+  activeViewers: number;
+  lastViewedAt?: string;
+  subscriberCount: number;
+  sightingCount: number;
+};
+
 // Trigger types - events that can activate a signal
 export type TriggerType =
   | "new_sighting"
@@ -48,6 +61,7 @@ export type NewSignal = {
   triggers: TriggerType[];
   conditions?: SignalConditions;
   isActive?: boolean;
+  classification?: SignalClassification; // Defaults to 'personal'
 };
 
 export type UpdateSignal = Partial<{
@@ -68,6 +82,8 @@ export type Signal = {
   triggers: TriggerType[];
   conditions: SignalConditions;
   isActive: boolean;
+  classification: SignalClassification;
+  analytics: SignalAnalytics;
   createdAt: string;
   updatedAt: string;
 };
@@ -295,6 +311,14 @@ export const createSignal = (
     triggers: input.triggers,
     conditions: conditionsResult.value,
     isActive: input.isActive ?? true,
+    classification: input.classification ?? "personal",
+    analytics: {
+      viewCount: 0,
+      uniqueViewers: 0,
+      activeViewers: 0,
+      subscriberCount: 0,
+      sightingCount: 0,
+    },
     createdAt: context.createdAt,
     updatedAt: context.createdAt,
   });

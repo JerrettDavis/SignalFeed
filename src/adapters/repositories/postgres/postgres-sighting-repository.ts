@@ -35,6 +35,16 @@ const mapRow = (row: Record<string, unknown>): Sighting => {
     spamReports: row.spam_reports != null ? Number(row.spam_reports) : 0,
     score: row.score != null ? Number(row.score) : 0,
     hotScore: row.hot_score != null ? Number(row.hot_score) : 0,
+    // New flair and scoring fields
+    timeAdjustedScore: row.time_adjusted_score != null ? Number(row.time_adjusted_score) : 0,
+    relevanceScore: row.relevance_score != null ? Number(row.relevance_score) : 1.0,
+    decayRate: row.decay_rate != null ? Number(row.decay_rate) : undefined,
+    lastScoreUpdate: row.last_score_update
+      ? new Date(row.last_score_update as string).toISOString()
+      : new Date().toISOString(),
+    flairCount: row.flair_count != null ? Number(row.flair_count) : 0,
+    primaryFlairId: row.primary_flair_id ? String(row.primary_flair_id) : undefined,
+    visibilityState: (row.visibility_state as Sighting["visibilityState"]) ?? "visible",
   };
 };
 
@@ -60,6 +70,11 @@ export const postgresSightingRepository = (): SightingRepository => {
       const spamReports = sighting.spamReports ?? 0;
       const score = sighting.score ?? 0;
       const hotScore = sighting.hotScore ?? 0;
+      const timeAdjustedScore = sighting.timeAdjustedScore ?? 0;
+      const relevanceScore = sighting.relevanceScore ?? 1.0;
+      const lastScoreUpdate = sighting.lastScoreUpdate ?? sighting.createdAt;
+      const flairCount = sighting.flairCount ?? 0;
+      const visibilityState = sighting.visibilityState ?? "visible";
 
       await sql`
         insert into sightings (
@@ -81,7 +96,14 @@ export const postgresSightingRepository = (): SightingRepository => {
           disputes,
           spam_reports,
           score,
-          hot_score
+          hot_score,
+          time_adjusted_score,
+          relevance_score,
+          decay_rate,
+          last_score_update,
+          flair_count,
+          primary_flair_id,
+          visibility_state
         )
         values (
           ${sighting.id},
@@ -102,7 +124,14 @@ export const postgresSightingRepository = (): SightingRepository => {
           ${disputes},
           ${spamReports},
           ${score},
-          ${hotScore}
+          ${hotScore},
+          ${timeAdjustedScore},
+          ${relevanceScore},
+          ${sighting.decayRate ?? null},
+          ${lastScoreUpdate},
+          ${flairCount},
+          ${sighting.primaryFlairId ?? null},
+          ${visibilityState}
         )
       `;
     },
@@ -158,6 +187,11 @@ export const postgresSightingRepository = (): SightingRepository => {
       const spamReports = sighting.spamReports ?? 0;
       const score = sighting.score ?? 0;
       const hotScore = sighting.hotScore ?? 0;
+      const timeAdjustedScore = sighting.timeAdjustedScore ?? 0;
+      const relevanceScore = sighting.relevanceScore ?? 1.0;
+      const lastScoreUpdate = sighting.lastScoreUpdate ?? new Date().toISOString();
+      const flairCount = sighting.flairCount ?? 0;
+      const visibilityState = sighting.visibilityState ?? "visible";
 
       await sql`
         update sightings set
@@ -177,7 +211,14 @@ export const postgresSightingRepository = (): SightingRepository => {
           disputes = ${disputes},
           spam_reports = ${spamReports},
           score = ${score},
-          hot_score = ${hotScore}
+          hot_score = ${hotScore},
+          time_adjusted_score = ${timeAdjustedScore},
+          relevance_score = ${relevanceScore},
+          decay_rate = ${sighting.decayRate ?? null},
+          last_score_update = ${lastScoreUpdate},
+          flair_count = ${flairCount},
+          primary_flair_id = ${sighting.primaryFlairId ?? null},
+          visibility_state = ${visibilityState}
         where id = ${sighting.id}
       `;
     },

@@ -114,31 +114,117 @@ export default function SignalListSidebar() {
       </div>
 
       <div className="flex-1 overflow-y-auto">
-        {signals.map((signal) => (
-          <button
-            key={signal.id}
-            onClick={() => handleSignalClick(signal)}
-            className={`w-full p-4 text-left hover:bg-[color:var(--surface)] transition-colors border-b border-[color:var(--border)] ${
-              selectedSignal === signal.id
-                ? "bg-[color:var(--surface)] border-l-4 border-l-[color:var(--accent-primary)]"
-                : ""
-            }`}
-          >
-            <div className="font-medium text-[color:var(--text-primary)]">
-              {signal.id === "signal-all" && "📌 "}
-              {signal.name}
-            </div>
-            {signal.description && (
-              <div className="text-sm text-[color:var(--text-secondary)] mt-1 line-clamp-2">
-                {signal.description}
+        {signals.map((signal) => {
+          const isGlobal = signal.target?.kind === "global";
+          const isGeofenced = signal.target?.kind === "geofence";
+
+          return (
+            <button
+              key={signal.id}
+              onClick={() => handleSignalClick(signal)}
+              className={`w-full p-4 text-left hover:bg-[color:var(--surface)] transition-colors border-b border-[color:var(--border)] ${
+                selectedSignal === signal.id
+                  ? "bg-[color:var(--surface)] border-l-4 border-l-[color:var(--accent-primary)]"
+                  : ""
+              }`}
+            >
+              <div className="flex items-start gap-2">
+                {/* Icon indicator for signal type */}
+                <div
+                  className={`flex-shrink-0 mt-0.5 ${
+                    isGlobal
+                      ? "text-blue-500"
+                      : isGeofenced
+                        ? "text-green-600"
+                        : "text-gray-400"
+                  }`}
+                >
+                  {isGlobal ? (
+                    // Globe icon for global signals
+                    <svg
+                      className="w-5 h-5"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                      />
+                    </svg>
+                  ) : isGeofenced ? (
+                    // Location pin for geofenced signals
+                    <svg
+                      className="w-5 h-5"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"
+                      />
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"
+                      />
+                    </svg>
+                  ) : (
+                    // Default icon
+                    <svg
+                      className="w-5 h-5"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                      />
+                    </svg>
+                  )}
+                </div>
+
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2">
+                    <span className="font-medium text-[color:var(--text-primary)]">
+                      {signal.name}
+                    </span>
+                    {/* Badge for signal type */}
+                    <span
+                      className={`flex-shrink-0 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide rounded ${
+                        isGlobal
+                          ? "bg-blue-100 text-blue-700"
+                          : isGeofenced
+                            ? "bg-green-100 text-green-700"
+                            : "bg-gray-100 text-gray-600"
+                      }`}
+                    >
+                      {isGlobal ? "Global" : isGeofenced ? "Area" : "Unknown"}
+                    </span>
+                  </div>
+                  {signal.description && (
+                    <div className="text-sm text-[color:var(--text-secondary)] mt-1 line-clamp-2">
+                      {signal.description}
+                    </div>
+                  )}
+                  <div className="flex gap-4 mt-2 text-xs text-[color:var(--text-tertiary)]">
+                    <span>{signal.sightingCount || 0} sightings</span>
+                    <span>{signal.subscriptionCount || 0} subscribers</span>
+                  </div>
+                </div>
               </div>
-            )}
-            <div className="flex gap-4 mt-2 text-xs text-[color:var(--text-tertiary)]">
-              <span>{signal.sightingCount || 0} sightings</span>
-              <span>{signal.subscriptionCount || 0} subscribers</span>
-            </div>
-          </button>
-        ))}
+            </button>
+          );
+        })}
       </div>
 
       {/* Create Signal Modal - TODO: Build proper signal creator */}

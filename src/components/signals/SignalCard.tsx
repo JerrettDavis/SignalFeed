@@ -61,15 +61,47 @@ export function SignalCard({
   const getTargetLabel = () => {
     switch (signal.target.kind) {
       case "geofence":
-        return "Geofence";
+        return "Area-Specific";
       case "polygon":
         return "Custom Area";
       case "global":
-        return "Global";
+        return "Global Coverage";
       default:
         return "Unknown";
     }
   };
+
+  const getTargetStyles = () => {
+    switch (signal.target.kind) {
+      case "geofence":
+        return {
+          bg: "bg-green-50",
+          text: "text-green-700",
+          border: "border-green-200",
+        };
+      case "polygon":
+        return {
+          bg: "bg-purple-50",
+          text: "text-purple-700",
+          border: "border-purple-200",
+        };
+      case "global":
+        return {
+          bg: "bg-blue-50",
+          text: "text-blue-700",
+          border: "border-blue-200",
+        };
+      default:
+        return {
+          bg: "bg-gray-50",
+          text: "text-gray-700",
+          border: "border-gray-200",
+        };
+    }
+  };
+
+  const isGlobal = signal.target.kind === "global";
+  const isGeofenced = signal.target.kind === "geofence";
 
   const getTriggerLabels = () => {
     const labels: Record<string, string> = {
@@ -81,13 +113,24 @@ export function SignalCard({
     return signal.triggers.map((t) => labels[t] || t);
   };
 
+  const cardBorderStyle = () => {
+    if (!signal.isActive) return "border-[color:var(--border)] opacity-60";
+
+    switch (signal.target.kind) {
+      case "global":
+        return "border-blue-200 hover:border-blue-300";
+      case "geofence":
+        return "border-green-200 hover:border-green-300";
+      case "polygon":
+        return "border-purple-200 hover:border-purple-300";
+      default:
+        return "border-white/70";
+    }
+  };
+
   return (
     <div
-      className={`rounded-2xl border bg-white/80 shadow-sm transition hover:shadow-md ${
-        signal.isActive
-          ? "border-white/70"
-          : "border-[color:var(--border)] opacity-60"
-      } ${className}`}
+      className={`rounded-2xl border bg-white/80 shadow-sm transition hover:shadow-md ${cardBorderStyle()} ${className}`}
     >
       <div className="p-5">
         {/* Header */}
@@ -130,26 +173,61 @@ export function SignalCard({
 
         {/* Target and Triggers */}
         <div className="mb-4 flex flex-wrap items-center gap-2 text-xs font-semibold">
-          <span className="rounded-full bg-white/60 px-3 py-1 text-[color:var(--slate)]">
-            <svg
-              className="mr-1 inline-block h-3 w-3"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"
-              />
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"
-              />
-            </svg>
+          <span
+            className={`rounded-full border px-3 py-1.5 ${getTargetStyles().bg} ${getTargetStyles().text} ${getTargetStyles().border}`}
+          >
+            {isGlobal ? (
+              // Globe icon for global signals
+              <svg
+                className="mr-1.5 inline-block h-4 w-4"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                />
+              </svg>
+            ) : isGeofenced ? (
+              // Location pin for geofenced signals
+              <svg
+                className="mr-1.5 inline-block h-4 w-4"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"
+                />
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"
+                />
+              </svg>
+            ) : (
+              // Default polygon icon
+              <svg
+                className="mr-1.5 inline-block h-4 w-4"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7"
+                />
+              </svg>
+            )}
             {getTargetLabel()}
           </span>
 
