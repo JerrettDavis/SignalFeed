@@ -2,6 +2,10 @@
 
 import { useEffect, useState } from "react";
 import { AdminLayout } from "@/components/admin/AdminLayout";
+import { ViewToggle } from "@/components/admin/core/ViewToggle";
+import { useViewMode } from "@/components/admin/utils/useViewMode";
+import { SignalAdminCard } from "@/components/admin/signals/SignalAdminCard";
+import { SignalEditModal } from "@/components/admin/signals/SignalEditModal";
 
 interface Signal {
   id: string;
@@ -14,6 +18,10 @@ interface Signal {
     kind: "geofence" | "polygon" | "global";
     geofenceId?: string;
   };
+  conditions?: {
+    typeIds?: string[];
+    categoryIds?: string[];
+  };
   analytics: {
     viewCount: number;
     subscriberCount: number;
@@ -23,8 +31,22 @@ interface Signal {
   updatedAt: string;
 }
 
+interface Geofence {
+  id: string;
+  name: string;
+}
+
+interface SightingType {
+  id: string;
+  label: string;
+}
+
 export default function AdminSignals() {
   const [signals, setSignals] = useState<Signal[]>([]);
+  const [geofences, setGeofences] = useState<Map<string, string>>(new Map());
+  const [sightingTypes, setSightingTypes] = useState<Map<string, string>>(
+    new Map()
+  );
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
@@ -33,12 +55,7 @@ export default function AdminSignals() {
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [editingSignal, setEditingSignal] = useState<Signal | null>(null);
-  const [editForm, setEditForm] = useState({
-    name: "",
-    description: "",
-    classification: "" as Signal["classification"],
-    isActive: true,
-  });
+  const [viewMode, setViewMode] = useViewMode("admin-signals-view");
 
   const fetchSignals = async () => {
     try {
@@ -59,6 +76,46 @@ export default function AdminSignals() {
       setLoading(false);
     }
   };
+
+  // Fetch geofences for name resolution
+  useEffect(() => {
+    const fetchGeofences = async () => {
+      try {
+        const response = await fetch("/api/geofences");
+        if (!response.ok) return;
+
+        const data = await response.json();
+        const map = new Map<string, string>();
+        (data.data || data).forEach((g: Geofence) => map.set(g.id, g.name));
+        setGeofences(map);
+      } catch (err) {
+        console.error("Error fetching geofences:", err);
+      }
+    };
+
+    void fetchGeofences();
+  }, []);
+
+  // Fetch sighting types for label resolution
+  useEffect(() => {
+    const fetchSightingTypes = async () => {
+      try {
+        const response = await fetch("/api/taxonomy/types");
+        if (!response.ok) return;
+
+        const data = await response.json();
+        const map = new Map<string, string>();
+        (data.data || data).forEach((t: SightingType) =>
+          map.set(t.id, t.label)
+        );
+        setSightingTypes(map);
+      } catch (err) {
+        console.error("Error fetching sighting types:", err);
+      }
+    };
+
+    void fetchSightingTypes();
+  }, []);
 
   useEffect(() => {
     void fetchSignals();
@@ -158,34 +215,11 @@ export default function AdminSignals() {
 
   const handleEdit = (signal: Signal) => {
     setEditingSignal(signal);
-    setEditForm({
-      name: signal.name,
-      description: signal.description || "",
-      classification: signal.classification,
-      isActive: signal.isActive,
-    });
   };
 
-  const handleUpdate = async () => {
-    if (!editingSignal) return;
-
-    try {
-      const response = await fetch(`/api/admin/signals/${editingSignal.id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(editForm),
-      });
-
-      if (!response.ok) {
-        throw new Error("Failed to update signal");
-      }
-
-      await fetchSignals();
-      setEditingSignal(null);
-      setSelectedIds(new Set());
-    } catch (err) {
-      alert(err instanceof Error ? err.message : "Failed to update signal");
-    }
+  const handleSaveEdit = async (signalId: string) => {
+    await fetchSignals();
+    setSelectedIds(new Set());
   };
 
   const handleToggleActive = async (id: string, currentStatus: boolean) => {
@@ -307,15 +341,18 @@ export default function AdminSignals() {
             </select>
           </div>
 
-          {/* Bulk Actions */}
-          {selectedIds.size > 0 && (
-            <button
-              onClick={handleBulkDelete}
-              className="rounded-lg bg-[color:var(--accent-danger)] px-4 py-2 text-sm font-medium text-white hover:bg-[color:var(--accent-danger)]/90 transition"
-            >
-              Delete Selected ({selectedIds.size})
-            </button>
-          )}
+          {/* View Toggle and Bulk Actions */}
+          <div className="flex items-center gap-2">
+            {selectedIds.size > 0 && (
+              <button
+                onClick={handleBulkDelete}
+                className="rounded-lg bg-[color:var(--accent-danger)] px-4 py-2 text-sm font-medium text-white hover:bg-[color:var(--accent-danger)]/90 transition"
+              >
+                Delete Selected ({selectedIds.size})
+              </button>
+            )}
+            <ViewToggle value={viewMode} onChange={setViewMode} />
+          </div>
         </div>
 
         {/* Loading State */}
@@ -337,8 +374,41 @@ export default function AdminSignals() {
           </div>
         )}
 
-        {/* Signals Table */}
-        {!loading && !error && (
+        {/* Grid View */}
+        {!loading && !error && viewMode === "grid" && (
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {filteredSignals.length === 0 ? (
+              <div className="col-span-full text-center py-12">
+                <p className="text-sm text-[color:var(--text-secondary)]">
+                  No signals found
+                </p>
+              </div>
+            ) : (
+              filteredSignals.map((signal) => (
+                <SignalAdminCard
+                  key={signal.id}
+                  signal={signal}
+                  geofenceName={
+                    signal.target.kind === "geofence"
+                      ? geofences.get(signal.target.geofenceId || "")
+                      : null
+                  }
+                  typeLabels={signal.conditions?.typeIds?.map(
+                    (id) => sightingTypes.get(id) || id
+                  )}
+                  selected={selectedIds.has(signal.id)}
+                  onSelect={handleSelectOne}
+                  onEdit={handleEdit}
+                  onDelete={handleDelete}
+                  onToggleActive={handleToggleActive}
+                />
+              ))
+            )}
+          </div>
+        )}
+
+        {/* Table View */}
+        {!loading && !error && viewMode === "table" && (
           <div className="overflow-hidden rounded-lg border border-[color:var(--border)] bg-[color:var(--surface)]">
             <div className="overflow-x-auto">
               <table className="w-full">
@@ -486,95 +556,12 @@ export default function AdminSignals() {
         )}
 
         {/* Edit Modal */}
-        {editingSignal && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-            <div className="w-full max-w-md rounded-lg bg-[color:var(--surface)] p-6 shadow-xl">
-              <h3 className="text-lg font-semibold text-[color:var(--text-primary)] mb-4">
-                Edit Signal
-              </h3>
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-[color:var(--text-primary)] mb-1">
-                    Name
-                  </label>
-                  <input
-                    type="text"
-                    value={editForm.name}
-                    onChange={(e) =>
-                      setEditForm({ ...editForm, name: e.target.value })
-                    }
-                    className="w-full rounded-lg border border-[color:var(--border)] bg-[color:var(--surface)] px-3 py-2 text-sm text-[color:var(--text-primary)]"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-[color:var(--text-primary)] mb-1">
-                    Description
-                  </label>
-                  <textarea
-                    value={editForm.description}
-                    onChange={(e) =>
-                      setEditForm({ ...editForm, description: e.target.value })
-                    }
-                    rows={3}
-                    className="w-full rounded-lg border border-[color:var(--border)] bg-[color:var(--surface)] px-3 py-2 text-sm text-[color:var(--text-primary)]"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-[color:var(--text-primary)] mb-1">
-                    Classification
-                  </label>
-                  <select
-                    value={editForm.classification}
-                    onChange={(e) =>
-                      setEditForm({
-                        ...editForm,
-                        classification: e.target
-                          .value as Signal["classification"],
-                      })
-                    }
-                    className="w-full rounded-lg border border-[color:var(--border)] bg-[color:var(--surface)] px-3 py-2 text-sm text-[color:var(--text-primary)]"
-                  >
-                    <option value="personal">Personal</option>
-                    <option value="verified">Verified</option>
-                    <option value="community">Community</option>
-                    <option value="official">Official</option>
-                  </select>
-                </div>
-                <div className="flex items-center gap-2">
-                  <input
-                    type="checkbox"
-                    id="isActive"
-                    checked={editForm.isActive}
-                    onChange={(e) =>
-                      setEditForm({ ...editForm, isActive: e.target.checked })
-                    }
-                    className="h-4 w-4 rounded border-[color:var(--border)]"
-                  />
-                  <label
-                    htmlFor="isActive"
-                    className="text-sm text-[color:var(--text-primary)]"
-                  >
-                    Active
-                  </label>
-                </div>
-              </div>
-              <div className="mt-6 flex gap-2">
-                <button
-                  onClick={handleUpdate}
-                  className="flex-1 rounded-lg bg-[color:var(--accent-primary)] px-4 py-2 text-sm font-medium text-white hover:bg-[color:var(--accent-primary)]/90 transition"
-                >
-                  Save Changes
-                </button>
-                <button
-                  onClick={() => setEditingSignal(null)}
-                  className="flex-1 rounded-lg border border-[color:var(--border)] bg-[color:var(--surface)] px-4 py-2 text-sm font-medium text-[color:var(--text-primary)] hover:bg-[color:var(--surface-elevated)] transition"
-                >
-                  Cancel
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
+        <SignalEditModal
+          signal={editingSignal}
+          isOpen={!!editingSignal}
+          onClose={() => setEditingSignal(null)}
+          onSave={handleSaveEdit}
+        />
       </div>
     </AdminLayout>
   );

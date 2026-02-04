@@ -3,6 +3,7 @@ import { requireAuth } from "@/shared/auth-helpers";
 import { getSignalRepository } from "@/adapters/repositories/repository-factory";
 import { jsonBadRequest, jsonOk, jsonNotFound } from "@/shared/http";
 import { SignalId, SignalClassification } from "@/domain/signals/signal";
+import { SignalTargetSchema, SignalConditionsSchema } from "@/contracts/signal";
 import { z } from "zod";
 
 export const runtime = "nodejs";
@@ -11,7 +12,7 @@ export const runtime = "nodejs";
  * PATCH /api/admin/signals/[id]
  *
  * Updates signal properties (admin only).
- * Allows changing: name, description, classification, isActive status.
+ * Allows changing: name, description, classification, isActive status, target, conditions.
  */
 export const PATCH = async (
   request: NextRequest,
@@ -38,6 +39,8 @@ export const PATCH = async (
       .enum(["official", "community", "personal", "verified"])
       .optional(),
     isActive: z.boolean().optional(),
+    target: SignalTargetSchema.optional(),
+    conditions: SignalConditionsSchema.optional(),
   });
 
   const parsed = UpdateSchema.safeParse(payload);
@@ -68,6 +71,10 @@ export const PATCH = async (
     }),
     ...(parsed.data.isActive !== undefined && {
       isActive: parsed.data.isActive,
+    }),
+    ...(parsed.data.target !== undefined && { target: parsed.data.target }),
+    ...(parsed.data.conditions !== undefined && {
+      conditions: parsed.data.conditions,
     }),
     updatedAt: new Date().toISOString(),
   };
