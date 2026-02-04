@@ -159,18 +159,25 @@ test.describe("Signal Ranking", () => {
     const data3 = await response3.json();
 
     // Find our location signal in each response
-    const findSignal = (signals: { name: string }[], name: string) =>
-      signals.find((s) => s.name === name);
+    const findSignal = (
+      signals: { name: string; distanceKm?: number }[],
+      name: string
+    ) => signals.find((s) => s.name === name);
 
     const signal2 = findSignal(data2.data, "Location Signal - Tulsa");
     const signal3 = findSignal(data3.data, "Location Signal - Tulsa");
 
     // With location, distanceKm should be calculated
-    expect(signal2.distanceKm).toBeDefined();
-    expect(signal3.distanceKm).toBeDefined();
+    expect(signal2).toBeDefined();
+    expect(signal3).toBeDefined();
+    expect(signal2?.distanceKm).toBeDefined();
+    expect(signal3?.distanceKm).toBeDefined();
 
     // Distance from San Francisco should be much larger than from Tulsa
-    if (signal2.distanceKm !== undefined && signal3.distanceKm !== undefined) {
+    if (
+      signal2?.distanceKm !== undefined &&
+      signal3?.distanceKm !== undefined
+    ) {
       expect(signal3.distanceKm).toBeGreaterThan(signal2.distanceKm);
     }
   });

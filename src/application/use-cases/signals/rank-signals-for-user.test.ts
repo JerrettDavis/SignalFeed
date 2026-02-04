@@ -13,6 +13,7 @@ import type { Signal, SignalId } from "@/domain/signals/signal";
 import type { User, UserId } from "@/domain/users/user";
 import type { UserPrivacySettings } from "@/domain/users/user-privacy-settings";
 import type { CategoryId } from "@/domain/sightings/sighting";
+import type { UserCategoryInteractionId } from "@/domain/user-preferences/user-category-interaction";
 
 describe("buildRankSignalsForUser", () => {
   // Mock repositories
@@ -112,29 +113,29 @@ describe("buildRankSignalsForUser", () => {
     // Setup mock repositories with default implementations
     mockUserRepo = {
       getById: async (id: string) => (id === "user-123" ? mockUser : null),
-    } as UserRepository;
+    } as unknown as UserRepository;
 
     mockSignalRepo = {
       list: async () => [mockSignal1, mockSignal2, mockSignal3],
-    } as SignalRepository;
+    } as unknown as SignalRepository;
 
     mockPrivacyRepo = {
       getByUserId: async () => null,
-    } as UserPrivacySettingsRepository;
+    } as unknown as UserPrivacySettingsRepository;
 
     mockCategoryInteractionRepo = {
       getTopCategoriesForUser: async () => [],
-    } as UserCategoryInteractionRepository;
+    } as unknown as UserCategoryInteractionRepository;
 
     mockSignalPreferenceRepo = {
       getHiddenSignalIds: async () => [],
       getPinnedSignalIds: async () => [],
       getUnimportantSignalIds: async () => [],
-    } as UserSignalPreferenceRepository;
+    } as unknown as UserSignalPreferenceRepository;
 
     mockActivitySnapshotRepo = {
       getRecentForSignal: async () => [],
-    } as SignalActivitySnapshotRepository;
+    } as unknown as SignalActivitySnapshotRepository;
 
     mockGeofenceRepo = {} as GeofenceRepository;
   });
@@ -344,17 +345,21 @@ describe("buildRankSignalsForUser", () => {
         ({
           enablePersonalization: false,
         }) as UserPrivacySettings,
-    };
+    } as unknown as UserPrivacySettingsRepository;
 
     mockCategoryInteractionRepo = {
       getTopCategoriesForUser: async () => [
         {
+          id: "interaction-1" as UserCategoryInteractionId,
+          userId: "user-123" as UserId,
           categoryId: "wildlife" as CategoryId,
           clickCount: 50,
           subscriptionCount: 5,
+          lastInteraction: new Date().toISOString(),
+          createdAt: new Date().toISOString(),
         },
       ],
-    };
+    } as unknown as UserCategoryInteractionRepository;
 
     const rankSignals = buildRankSignalsForUser({
       signalRepository: mockSignalRepo,
@@ -387,17 +392,21 @@ describe("buildRankSignalsForUser", () => {
         ({
           enablePersonalization: true,
         }) as UserPrivacySettings,
-    };
+    } as unknown as UserPrivacySettingsRepository;
 
     mockCategoryInteractionRepo = {
       getTopCategoriesForUser: async () => [
         {
+          id: "interaction-1" as UserCategoryInteractionId,
+          userId: "user-123" as UserId,
           categoryId: "wildlife" as CategoryId,
           clickCount: 50,
           subscriptionCount: 5,
+          lastInteraction: new Date().toISOString(),
+          createdAt: new Date().toISOString(),
         },
       ],
-    };
+    } as unknown as UserCategoryInteractionRepository;
 
     const rankSignals = buildRankSignalsForUser({
       signalRepository: mockSignalRepo,
@@ -428,7 +437,7 @@ describe("buildRankSignalsForUser", () => {
         ({
           enableLocationSharing: true,
         }) as UserPrivacySettings,
-    };
+    } as unknown as UserPrivacySettingsRepository;
 
     const rankSignals = buildRankSignalsForUser({
       signalRepository: mockSignalRepo,
@@ -461,7 +470,7 @@ describe("buildRankSignalsForUser", () => {
         ({
           enableLocationSharing: false,
         }) as UserPrivacySettings,
-    };
+    } as unknown as UserPrivacySettingsRepository;
 
     const rankSignals = buildRankSignalsForUser({
       signalRepository: mockSignalRepo,
@@ -493,7 +502,7 @@ describe("buildRankSignalsForUser", () => {
     const threeDaysAgo = new Date(now.getTime() - 3 * 24 * 60 * 60 * 1000);
 
     mockActivitySnapshotRepo = {
-      getRecentForSignal: async (signalId) => {
+      getRecentForSignal: async (signalId: SignalId) => {
         if (signalId === ("signal-1" as SignalId)) {
           return [
             {
@@ -514,7 +523,7 @@ describe("buildRankSignalsForUser", () => {
         }
         return [];
       },
-    } as SignalActivitySnapshotRepository;
+    } as unknown as SignalActivitySnapshotRepository;
 
     const rankSignals = buildRankSignalsForUser({
       signalRepository: mockSignalRepo,
@@ -579,17 +588,21 @@ describe("buildRankSignalsForUser", () => {
           enablePersonalization: true,
           enableLocationSharing: true,
         }) as UserPrivacySettings,
-    };
+    } as unknown as UserPrivacySettingsRepository;
 
     mockCategoryInteractionRepo = {
       getTopCategoriesForUser: async () => [
         {
+          id: "interaction-1" as UserCategoryInteractionId,
+          userId: "user-123" as UserId,
           categoryId: "nature" as CategoryId,
           clickCount: 50,
           subscriptionCount: 5,
+          lastInteraction: new Date().toISOString(),
+          createdAt: new Date().toISOString(),
         },
       ],
-    };
+    } as unknown as UserCategoryInteractionRepository;
 
     mockSignalPreferenceRepo = {
       ...mockSignalPreferenceRepo,
@@ -627,7 +640,7 @@ describe("buildRankSignalsForUser", () => {
   it("handles empty signal list", async () => {
     mockSignalRepo = {
       list: async () => [],
-    } as SignalRepository;
+    } as unknown as SignalRepository;
 
     const rankSignals = buildRankSignalsForUser({
       signalRepository: mockSignalRepo,
@@ -654,7 +667,7 @@ describe("buildRankSignalsForUser", () => {
   it("defaults privacy settings when not configured", async () => {
     mockPrivacyRepo = {
       getByUserId: async () => null,
-    };
+    } as unknown as UserPrivacySettingsRepository;
 
     const rankSignals = buildRankSignalsForUser({
       signalRepository: mockSignalRepo,
