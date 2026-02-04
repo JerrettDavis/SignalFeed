@@ -1,8 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getSightingFlairRepository, getFlairRepository, getSightingRepository } from "@/adapters/repositories/repository-factory";
+import {
+  getSightingFlairRepository,
+  getFlairRepository,
+  getSightingRepository,
+} from "@/adapters/repositories/repository-factory";
 import { assignFlairToSighting } from "@/application/use-cases/flairs/assign-flair-to-sighting";
 import { suggestFlair } from "@/application/use-cases/flairs/suggest-flair";
 import { removeFlairFromSighting } from "@/application/use-cases/flairs/remove-flair-from-sighting";
+import type { SightingId } from "@/domain/sightings/sighting";
 
 export const dynamic = "force-dynamic";
 
@@ -16,7 +21,9 @@ export async function GET(request: NextRequest, context: RouteContext) {
     const { id: sightingId } = await context.params;
     const sightingFlairRepository = getSightingFlairRepository();
 
-    const flairs = await sightingFlairRepository.getFlairsForSighting(sightingId as any);
+    const flairs = await sightingFlairRepository.getFlairsForSighting(
+      sightingId as SightingId
+    );
 
     // Enrich with flair details
     const flairRepository = getFlairRepository();
@@ -75,7 +82,10 @@ export async function POST(request: NextRequest, context: RouteContext) {
       );
 
       if (!result.ok) {
-        return NextResponse.json({ error: result.error.message }, { status: 400 });
+        return NextResponse.json(
+          { error: result.error.message },
+          { status: 400 }
+        );
       }
 
       return NextResponse.json(
@@ -101,7 +111,10 @@ export async function POST(request: NextRequest, context: RouteContext) {
       );
 
       if (!result.ok) {
-        return NextResponse.json({ error: result.error.message }, { status: 400 });
+        return NextResponse.json(
+          { error: result.error.message },
+          { status: 400 }
+        );
       }
 
       return NextResponse.json(
@@ -150,7 +163,10 @@ export async function DELETE(request: NextRequest, context: RouteContext) {
     );
 
     if (!result.ok) {
-      return NextResponse.json({ error: result.error.message }, { status: 400 });
+      return NextResponse.json(
+        { error: result.error.message },
+        { status: 400 }
+      );
     }
 
     return NextResponse.json(

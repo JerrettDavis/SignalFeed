@@ -1,8 +1,14 @@
 import type { SightingFlairRepository } from "@/ports/sighting-flair-repository";
 import type { FlairRepository } from "@/ports/flair-repository";
 import type { SightingRepository } from "@/ports/sighting-repository";
-import { createSightingFlair, canUserAssignFlair, type AssignFlairInput } from "@/domain/flairs/sighting-flair";
+import {
+  createSightingFlair,
+  canUserAssignFlair,
+  type AssignFlairInput,
+} from "@/domain/flairs/sighting-flair";
 import { err, ok, type Result } from "@/shared/result";
+import type { SightingId } from "@/domain/sightings/sighting";
+import type { FlairId } from "@/domain/flairs/flair";
 
 export interface AssignFlairToSightingInput {
   sightingId: string;
@@ -23,13 +29,15 @@ export async function assignFlairToSighting(
   const { sightingFlairRepository, flairRepository, sightingRepository } = deps;
 
   // Check if sighting exists
-  const sighting = await sightingRepository.getById(input.sightingId as any);
+  const sighting = await sightingRepository.getById(
+    input.sightingId as SightingId
+  );
   if (!sighting) {
     return err({ code: "sighting_not_found", message: "Sighting not found" });
   }
 
   // Check if flair exists
-  const flair = await flairRepository.getById(input.flairId as any);
+  const flair = await flairRepository.getById(input.flairId as FlairId);
   if (!flair) {
     return err({ code: "flair_not_found", message: "Flair not found" });
   }
@@ -51,8 +59,8 @@ export async function assignFlairToSighting(
 
   // Check if flair is already assigned
   const hasExistingFlair = await sightingFlairRepository.hasFlai(
-    input.sightingId as any,
-    input.flairId as any
+    input.sightingId as SightingId,
+    input.flairId as FlairId
   );
 
   if (hasExistingFlair) {
@@ -76,7 +84,8 @@ export async function assignFlairToSighting(
   } catch (error) {
     return err({
       code: "assignment_failed",
-      message: error instanceof Error ? error.message : "Failed to assign flair",
+      message:
+        error instanceof Error ? error.message : "Failed to assign flair",
     });
   }
 }

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getFlairRepository } from "@/adapters/repositories/repository-factory";
+import type { FlairType } from "@/domain/flairs/flair";
 
 export const dynamic = "force-dynamic";
 
@@ -19,7 +20,7 @@ export async function GET(request: NextRequest) {
       flairs = await flairRepository.getFlairsForCategory(categoryId);
     } else if (type) {
       // Get flairs by type
-      flairs = await flairRepository.getFlairsByType(type as any);
+      flairs = await flairRepository.getFlairsByType(type as FlairType);
     } else if (includeInactive) {
       // Get all flairs including inactive
       flairs = await flairRepository.getAll();

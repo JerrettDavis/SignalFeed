@@ -1,9 +1,15 @@
 import type { FlairId } from "./flair";
 import type { SightingId } from "../sightings/sighting";
 
-export type FlairSuggestionId = string & { readonly __brand: "FlairSuggestionId" };
+export type FlairSuggestionId = string & {
+  readonly __brand: "FlairSuggestionId";
+};
 
-export type SightingFlairAssignmentMethod = "manual" | "auto" | "consensus" | "moderator";
+export type SightingFlairAssignmentMethod =
+  | "manual"
+  | "auto"
+  | "consensus"
+  | "moderator";
 
 export interface SightingFlair {
   readonly sightingId: SightingId;
@@ -11,7 +17,7 @@ export interface SightingFlair {
   readonly assignedBy?: string; // user_id
   readonly assignedAt: Date;
   readonly assignmentMethod: SightingFlairAssignmentMethod;
-  readonly metadata?: Record<string, any>;
+  readonly metadata?: Record<string, unknown>;
 }
 
 export interface AssignFlairInput {
@@ -19,7 +25,7 @@ export interface AssignFlairInput {
   readonly flairId: string;
   readonly assignedBy?: string;
   readonly assignmentMethod: SightingFlairAssignmentMethod;
-  readonly metadata?: Record<string, any>;
+  readonly metadata?: Record<string, unknown>;
 }
 
 export function validateFlairAssignment(input: AssignFlairInput): void {
@@ -31,14 +37,27 @@ export function validateFlairAssignment(input: AssignFlairInput): void {
     throw new Error("Flair ID is required");
   }
 
-  const validMethods: SightingFlairAssignmentMethod[] = ["manual", "auto", "consensus", "moderator"];
+  const validMethods: SightingFlairAssignmentMethod[] = [
+    "manual",
+    "auto",
+    "consensus",
+    "moderator",
+  ];
   if (!validMethods.includes(input.assignmentMethod)) {
-    throw new Error(`Assignment method must be one of: ${validMethods.join(", ")}`);
+    throw new Error(
+      `Assignment method must be one of: ${validMethods.join(", ")}`
+    );
   }
 
   // Validate that assignedBy is provided for manual and moderator methods
-  if ((input.assignmentMethod === "manual" || input.assignmentMethod === "moderator") && !input.assignedBy) {
-    throw new Error(`assignedBy is required for ${input.assignmentMethod} assignment method`);
+  if (
+    (input.assignmentMethod === "manual" ||
+      input.assignmentMethod === "moderator") &&
+    !input.assignedBy
+  ) {
+    throw new Error(
+      `assignedBy is required for ${input.assignmentMethod} assignment method`
+    );
   }
 }
 
@@ -100,7 +119,9 @@ export interface CreateFlairSuggestionInput {
   readonly suggestedBy: string;
 }
 
-export function validateFlairSuggestion(input: CreateFlairSuggestionInput): void {
+export function validateFlairSuggestion(
+  input: CreateFlairSuggestionInput
+): void {
   if (!input.sightingId || input.sightingId.trim() === "") {
     throw new Error("Sighting ID is required");
   }
@@ -114,7 +135,9 @@ export function validateFlairSuggestion(input: CreateFlairSuggestionInput): void
   }
 }
 
-export function createFlairSuggestion(input: CreateFlairSuggestionInput): FlairSuggestion {
+export function createFlairSuggestion(
+  input: CreateFlairSuggestionInput
+): FlairSuggestion {
   validateFlairSuggestion(input);
 
   return {
@@ -135,6 +158,9 @@ export function shouldAutoApplySuggestion(
   thresholdPercentage: number = 0.1 // 10% of engaged users by default
 ): boolean {
   const minVotes = 3; // Minimum absolute votes required
-  const calculatedThreshold = Math.max(minVotes, Math.ceil(sightingEngagement * thresholdPercentage));
+  const calculatedThreshold = Math.max(
+    minVotes,
+    Math.ceil(sightingEngagement * thresholdPercentage)
+  );
   return voteCount >= calculatedThreshold;
 }

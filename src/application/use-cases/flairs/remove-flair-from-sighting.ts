@@ -2,6 +2,8 @@ import type { SightingFlairRepository } from "@/ports/sighting-flair-repository"
 import type { SightingRepository } from "@/ports/sighting-repository";
 import { canUserAssignFlair } from "@/domain/flairs/sighting-flair";
 import { err, ok, type Result } from "@/shared/result";
+import type { SightingId } from "@/domain/sightings/sighting";
+import type { FlairId } from "@/domain/flairs/flair";
 
 export interface RemoveFlairFromSightingInput {
   sightingId: string;
@@ -20,15 +22,17 @@ export async function removeFlairFromSighting(
   const { sightingFlairRepository, sightingRepository } = deps;
 
   // Check if sighting exists
-  const sighting = await sightingRepository.getById(input.sightingId as any);
+  const sighting = await sightingRepository.getById(
+    input.sightingId as SightingId
+  );
   if (!sighting) {
     return err({ code: "sighting_not_found", message: "Sighting not found" });
   }
 
   // Check if flair is assigned
   const hasExistingFlair = await sightingFlairRepository.hasFlai(
-    input.sightingId as any,
-    input.flairId as any
+    input.sightingId as SightingId,
+    input.flairId as FlairId
   );
 
   if (!hasExistingFlair) {
@@ -39,8 +43,12 @@ export async function removeFlairFromSighting(
   }
 
   // Get the flair assignment to check who assigned it
-  const flairs = await sightingFlairRepository.getFlairsForSighting(input.sightingId as any);
-  const flairAssignment = flairs.find((f) => f.flairId === (input.flairId as any));
+  const flairs = await sightingFlairRepository.getFlairsForSighting(
+    input.sightingId as SightingId
+  );
+  const flairAssignment = flairs.find(
+    (f) => f.flairId === (input.flairId as FlairId)
+  );
 
   if (!flairAssignment) {
     return err({
@@ -65,12 +73,16 @@ export async function removeFlairFromSighting(
 
   // Remove the flair
   try {
-    await sightingFlairRepository.remove(input.sightingId as any, input.flairId as any);
+    await sightingFlairRepository.remove(
+      input.sightingId as SightingId,
+      input.flairId as FlairId
+    );
     return ok(undefined);
   } catch (error) {
     return err({
       code: "removal_failed",
-      message: error instanceof Error ? error.message : "Failed to remove flair",
+      message:
+        error instanceof Error ? error.message : "Failed to remove flair",
     });
   }
 }

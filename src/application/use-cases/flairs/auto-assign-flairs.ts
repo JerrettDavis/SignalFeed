@@ -1,20 +1,30 @@
 import type { SightingFlairRepository } from "@/ports/sighting-flair-repository";
 import type { FlairRepository } from "@/ports/flair-repository";
 import type { SightingRepository } from "@/ports/sighting-repository";
-import type { Sighting } from "@/domain/sightings/sighting";
+import type { Sighting, SightingId } from "@/domain/sightings/sighting";
 import type { Flair, AutoAssignConditions } from "@/domain/flairs/flair";
 import { createSightingFlair } from "@/domain/flairs/sighting-flair";
 
-function meetsAutoAssignConditions(sighting: Sighting, conditions?: AutoAssignConditions): boolean {
+function meetsAutoAssignConditions(
+  sighting: Sighting,
+  conditions?: AutoAssignConditions
+): boolean {
   if (!conditions) return false;
 
-  const ageInHours = (Date.now() - new Date(sighting.observedAt).getTime()) / (1000 * 60 * 60);
+  const ageInHours =
+    (Date.now() - new Date(sighting.observedAt).getTime()) / (1000 * 60 * 60);
 
   // Check score bounds
-  if (conditions.minScore !== undefined && sighting.score < conditions.minScore) {
+  if (
+    conditions.minScore !== undefined &&
+    sighting.score < conditions.minScore
+  ) {
     return false;
   }
-  if (conditions.maxScore !== undefined && sighting.score > conditions.maxScore) {
+  if (
+    conditions.maxScore !== undefined &&
+    sighting.score > conditions.maxScore
+  ) {
     return false;
   }
 
@@ -48,13 +58,11 @@ function meetsAutoAssignConditions(sighting: Sighting, conditions?: AutoAssignCo
   return true;
 }
 
-export async function autoAssignFlairs(
-  deps: {
-    sightingFlairRepository: SightingFlairRepository;
-    flairRepository: FlairRepository;
-    sightingRepository: SightingRepository;
-  }
-): Promise<{ assignedCount: number; processedSightings: number }> {
+export async function autoAssignFlairs(deps: {
+  sightingFlairRepository: SightingFlairRepository;
+  flairRepository: FlairRepository;
+  sightingRepository: SightingRepository;
+}): Promise<{ assignedCount: number; processedSightings: number }> {
   const { sightingFlairRepository, flairRepository, sightingRepository } = deps;
 
   let assignedCount = 0;
@@ -127,7 +135,7 @@ export async function autoAssignFlairsForSighting(
 ): Promise<number> {
   const { sightingFlairRepository, flairRepository, sightingRepository } = deps;
 
-  const sighting = await sightingRepository.getById(sightingId as any);
+  const sighting = await sightingRepository.getById(sightingId as SightingId);
   if (!sighting) {
     return 0;
   }
@@ -144,7 +152,10 @@ export async function autoAssignFlairsForSighting(
     }
 
     // Check if already assigned
-    const hasExistingFlair = await sightingFlairRepository.hasFlai(sighting.id, flair.id);
+    const hasExistingFlair = await sightingFlairRepository.hasFlai(
+      sighting.id,
+      flair.id
+    );
     if (hasExistingFlair) {
       continue;
     }
