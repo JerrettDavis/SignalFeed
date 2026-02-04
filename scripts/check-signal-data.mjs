@@ -36,7 +36,7 @@ function loadEnv() {
         process.env[key] = value;
       }
     });
-  } catch (error) {
+  } catch {
     console.error('⚠️  Could not load .env.production.local');
   }
 }
@@ -141,7 +141,7 @@ async function main() {
   try {
     await checkData();
     console.log('\n✨ Check complete!');
-  } catch (error) {
+  } catch {
     console.error('\n❌ Check failed');
     process.exit(1);
   } finally {

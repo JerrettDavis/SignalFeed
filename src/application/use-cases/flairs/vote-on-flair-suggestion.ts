@@ -1,6 +1,10 @@
 import type { SightingFlairRepository } from "@/ports/sighting-flair-repository";
 import type { SightingRepository } from "@/ports/sighting-repository";
-import { shouldAutoApplySuggestion, createSightingFlair } from "@/domain/flairs/sighting-flair";
+import {
+  shouldAutoApplySuggestion,
+  createSightingFlair,
+  type FlairSuggestionId,
+} from "@/domain/flairs/sighting-flair";
 import { err, ok, type Result } from "@/shared/result";
 
 export interface VoteOnFlairSuggestionInput {
@@ -14,13 +18,23 @@ export async function voteOnFlairSuggestion(
     sightingFlairRepository: SightingFlairRepository;
     sightingRepository: SightingRepository;
   }
-): Promise<Result<{ applied: boolean; voteCount: number }, { code: string; message: string }>> {
+): Promise<
+  Result<
+    { applied: boolean; voteCount: number },
+    { code: string; message: string }
+  >
+> {
   const { sightingFlairRepository, sightingRepository } = deps;
 
   // Get the suggestion
-  const suggestion = await sightingFlairRepository.getSuggestion(input.suggestionId as any);
+  const suggestion = await sightingFlairRepository.getSuggestion(
+    input.suggestionId as FlairSuggestionId
+  );
   if (!suggestion) {
-    return err({ code: "suggestion_not_found", message: "Flair suggestion not found" });
+    return err({
+      code: "suggestion_not_found",
+      message: "Flair suggestion not found",
+    });
   }
 
   if (suggestion.status !== "pending") {
@@ -46,7 +60,10 @@ export async function voteOnFlairSuggestion(
 
   // Increment vote count
   const newVoteCount = suggestion.voteCount + 1;
-  await sightingFlairRepository.updateSuggestionVotes(suggestion.id, newVoteCount);
+  await sightingFlairRepository.updateSuggestionVotes(
+    suggestion.id,
+    newVoteCount
+  );
 
   // Calculate total engagement
   const totalEngagement =
@@ -75,7 +92,10 @@ export async function voteOnFlairSuggestion(
       });
 
       await sightingFlairRepository.assign(sightingFlair);
-      await sightingFlairRepository.updateSuggestionStatus(suggestion.id, "applied");
+      await sightingFlairRepository.updateSuggestionStatus(
+        suggestion.id,
+        "applied"
+      );
 
       return ok({ applied: true, voteCount: newVoteCount });
     }

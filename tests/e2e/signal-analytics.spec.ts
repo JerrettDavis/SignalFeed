@@ -227,7 +227,11 @@ test.describe("Signal Analytics", () => {
     expect(privacyResponse.ok()).toBe(true);
 
     // Create a test signal with a specific category
-    const signalId = await createTestSignal(page, userId, "Privacy Test Signal");
+    const signalId = await createTestSignal(
+      page,
+      userId,
+      "Privacy Test Signal"
+    );
 
     // Get the signal to check its category
     const signalResponse = await page.request.get(`/api/signals/${signalId}`);
@@ -332,7 +336,7 @@ test.describe("Signal Analytics", () => {
 
       // Should have interaction with cat-public-safety
       const safetyInteraction = interactionsData.data.find(
-        (i: any) => i.categoryId === "cat-public-safety"
+        (i: { categoryId: string }) => i.categoryId === "cat-public-safety"
       );
 
       if (safetyInteraction) {
@@ -396,7 +400,7 @@ test.describe("Signal Analytics", () => {
     const data = await response.json();
 
     // Find our signal
-    const signal = data.data.find((s: any) => s.id === signalId);
+    const signal = data.data.find((s: { id: string }) => s.id === signalId);
     expect(signal).toBeDefined();
 
     // Should include analytics
@@ -484,7 +488,9 @@ test.describe("Signal Analytics", () => {
       {
         data: {
           deliveryMethod: "email",
-          deliveryTarget: testUserId ? `${testUserId}@example.com` : "test@example.com",
+          deliveryTarget: testUserId
+            ? `${testUserId}@example.com`
+            : "test@example.com",
         },
       }
     );
@@ -553,9 +559,7 @@ test.describe("Signal Analytics", () => {
     const { userId } = await registerAndLogin(page);
 
     // Get current privacy settings
-    const getResponse = await page.request.get(
-      `/api/users/${userId}/privacy`
-    );
+    const getResponse = await page.request.get(`/api/users/${userId}/privacy`);
 
     // If privacy endpoint doesn't exist, skip this test
     if (getResponse.status() === 404) {

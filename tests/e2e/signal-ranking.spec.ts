@@ -161,8 +161,8 @@ test.describe("Signal Ranking", () => {
     const data3 = await response3.json();
 
     // Find our location signal in each response
-    const findSignal = (signals: any[], name: string) =>
-      signals.find((s: any) => s.name === name);
+    const findSignal = (signals: { name: string }[], name: string) =>
+      signals.find((s) => s.name === name);
 
     const signal1 = findSignal(data1.data, "Location Signal - Tulsa");
     const signal2 = findSignal(data2.data, "Location Signal - Tulsa");
@@ -234,8 +234,12 @@ test.describe("Signal Ranking", () => {
     const data = await response.json();
 
     // Find the positions of our signals
-    const signal1Idx = data.data.findIndex((s: any) => s.id === signal1Id);
-    const signal2Idx = data.data.findIndex((s: any) => s.id === signal2Id);
+    const signal1Idx = data.data.findIndex(
+      (s: { id: string }) => s.id === signal1Id
+    );
+    const signal2Idx = data.data.findIndex(
+      (s: { id: string }) => s.id === signal2Id
+    );
 
     // Signal B (pinned) should appear before Signal A
     if (signal1Idx !== -1 && signal2Idx !== -1) {
@@ -266,7 +270,7 @@ test.describe("Signal Ranking", () => {
     const response1 = await page.request.get("/api/signals");
     expect(response1.ok()).toBe(true);
     const data1 = await response1.json();
-    const signal1 = data1.data.find((s: any) => s.id === signalId);
+    const signal1 = data1.data.find((s: { id: string }) => s.id === signalId);
     expect(signal1).toBeDefined();
 
     // Hide the signal
@@ -290,14 +294,14 @@ test.describe("Signal Ranking", () => {
     const response2 = await page.request.get("/api/signals");
     expect(response2.ok()).toBe(true);
     const data2 = await response2.json();
-    const signal2 = data2.data.find((s: any) => s.id === signalId);
+    const signal2 = data2.data.find((s: { id: string }) => s.id === signalId);
     expect(signal2).toBeUndefined();
 
     // Get signals with includeHidden=true
     const response3 = await page.request.get("/api/signals?includeHidden=true");
     expect(response3.ok()).toBe(true);
     const data3 = await response3.json();
-    const signal3 = data3.data.find((s: any) => s.id === signalId);
+    const signal3 = data3.data.find((s: { id: string }) => s.id === signalId);
     expect(signal3).toBeDefined();
   });
 
@@ -335,7 +339,7 @@ test.describe("Signal Ranking", () => {
     const data = await response.json();
 
     // Find our signal
-    const signal = data.data.find((s: any) => s.id === signalId);
+    const signal = data.data.find((s: { id: string }) => s.id === signalId);
     expect(signal).toBeDefined();
 
     // Signal should have viral boost metadata
@@ -398,13 +402,13 @@ test.describe("Signal Ranking", () => {
 
     // Find our signals
     const personalSignal = data.data.find(
-      (s: any) => s.id === signalIds["Personal Signal"]
+      (s: { id: string }) => s.id === signalIds["Personal Signal"]
     );
     const verifiedSignal = data.data.find(
-      (s: any) => s.id === signalIds["Verified Signal"]
+      (s: { id: string }) => s.id === signalIds["Verified Signal"]
     );
     const communitySignal = data.data.find(
-      (s: any) => s.id === signalIds["Community Signal"]
+      (s: { id: string }) => s.id === signalIds["Community Signal"]
     );
 
     // All signals should have rank scores
@@ -415,9 +419,7 @@ test.describe("Signal Ranking", () => {
     // Based on classification priority:
     // community (500) > verified (100) > personal (0)
     // (assuming equal popularity/distance)
-    expect(communitySignal.rankScore).toBeGreaterThan(
-      verifiedSignal.rankScore
-    );
+    expect(communitySignal.rankScore).toBeGreaterThan(verifiedSignal.rankScore);
     expect(verifiedSignal.rankScore).toBeGreaterThan(personalSignal.rankScore);
   });
 
@@ -467,14 +469,18 @@ test.describe("Signal Ranking", () => {
     const data = await response.json();
 
     // Find official signal
-    const officialSignal = data.data.find((s: any) => s.id === officialId);
+    const officialSignal = data.data.find(
+      (s: { id: string }) => s.id === officialId
+    );
 
     // Official signal should have extremely high rank score
     expect(officialSignal).toBeDefined();
     expect(officialSignal.rankScore).toBeGreaterThan(10000);
 
     // Official signal should be at or near the top
-    const officialIdx = data.data.findIndex((s: any) => s.id === officialId);
+    const officialIdx = data.data.findIndex(
+      (s: { id: string }) => s.id === officialId
+    );
     expect(officialIdx).toBeLessThan(3); // Top 3
   });
 
@@ -500,7 +506,7 @@ test.describe("Signal Ranking", () => {
     // Get rank before marking as unimportant
     const response1 = await page.request.get("/api/signals");
     const data1 = await response1.json();
-    const signal1 = data1.data.find((s: any) => s.id === signalId);
+    const signal1 = data1.data.find((s: { id: string }) => s.id === signalId);
     const rankBefore = signal1?.rankScore;
 
     // Mark as unimportant
@@ -523,7 +529,7 @@ test.describe("Signal Ranking", () => {
     // Get rank after marking as unimportant
     const response2 = await page.request.get("/api/signals");
     const data2 = await response2.json();
-    const signal2 = data2.data.find((s: any) => s.id === signalId);
+    const signal2 = data2.data.find((s: { id: string }) => s.id === signalId);
     const rankAfter = signal2?.rankScore;
 
     // Rank should be negative (penalty for unimportant community signals)

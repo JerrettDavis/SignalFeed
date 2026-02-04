@@ -1,8 +1,14 @@
 import type { SightingFlairRepository } from "@/ports/sighting-flair-repository";
 import type { FlairRepository } from "@/ports/flair-repository";
 import type { SightingRepository } from "@/ports/sighting-repository";
-import { createFlairSuggestion, shouldAutoApplySuggestion, createSightingFlair } from "@/domain/flairs/sighting-flair";
+import {
+  createFlairSuggestion,
+  shouldAutoApplySuggestion,
+  createSightingFlair,
+} from "@/domain/flairs/sighting-flair";
 import { err, ok, type Result } from "@/shared/result";
+import type { SightingId } from "@/domain/sightings/sighting";
+import type { FlairId } from "@/domain/flairs/flair";
 
 export interface SuggestFlairInput {
   sightingId: string;
@@ -17,25 +23,32 @@ export async function suggestFlair(
     flairRepository: FlairRepository;
     sightingRepository: SightingRepository;
   }
-): Promise<Result<{ suggestionId: string; autoApplied: boolean }, { code: string; message: string }>> {
+): Promise<
+  Result<
+    { suggestionId: string; autoApplied: boolean },
+    { code: string; message: string }
+  >
+> {
   const { sightingFlairRepository, flairRepository, sightingRepository } = deps;
 
   // Check if sighting exists
-  const sighting = await sightingRepository.getById(input.sightingId as any);
+  const sighting = await sightingRepository.getById(
+    input.sightingId as SightingId
+  );
   if (!sighting) {
     return err({ code: "sighting_not_found", message: "Sighting not found" });
   }
 
   // Check if flair exists
-  const flair = await flairRepository.getById(input.flairId as any);
+  const flair = await flairRepository.getById(input.flairId as FlairId);
   if (!flair) {
     return err({ code: "flair_not_found", message: "Flair not found" });
   }
 
   // Check if flair is already assigned
   const hasExistingFlair = await sightingFlairRepository.hasFlai(
-    input.sightingId as any,
-    input.flairId as any
+    input.sightingId as SightingId,
+    input.flairId as FlairId
   );
 
   if (hasExistingFlair) {
@@ -47,8 +60,8 @@ export async function suggestFlair(
 
   // Check if user already suggested this flair
   const existingSuggestion = await sightingFlairRepository.getUserSuggestion(
-    input.sightingId as any,
-    input.flairId as any,
+    input.sightingId as SightingId,
+    input.flairId as FlairId,
     input.userId
   );
 
@@ -92,7 +105,10 @@ export async function suggestFlair(
       });
 
       await sightingFlairRepository.assign(sightingFlair);
-      await sightingFlairRepository.updateSuggestionStatus(suggestion.id, "applied");
+      await sightingFlairRepository.updateSuggestionStatus(
+        suggestion.id,
+        "applied"
+      );
 
       return ok({ suggestionId: suggestion.id, autoApplied: true });
     }
@@ -101,7 +117,8 @@ export async function suggestFlair(
   } catch (error) {
     return err({
       code: "suggestion_failed",
-      message: error instanceof Error ? error.message : "Failed to suggest flair",
+      message:
+        error instanceof Error ? error.message : "Failed to suggest flair",
     });
   }
 }
