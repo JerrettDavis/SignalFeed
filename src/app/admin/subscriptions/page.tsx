@@ -2,6 +2,9 @@
 
 import { useEffect, useState } from "react";
 import { AdminLayout } from "@/components/admin/AdminLayout";
+import { ViewToggle } from "@/components/admin/core/ViewToggle";
+import { useViewMode } from "@/components/admin/utils/useViewMode";
+import { SubscriptionAdminCard } from "@/components/admin/subscriptions/SubscriptionAdminCard";
 
 type SubscriptionTarget =
   | { kind: "geofence"; geofenceId: string }
@@ -28,8 +31,14 @@ const formatTarget = (target: SubscriptionTarget): string => {
   return "Unknown target";
 };
 
+interface Geofence {
+  id: string;
+  name: string;
+}
+
 export default function AdminSubscriptions() {
   const [subscriptions, setSubscriptions] = useState<Subscription[]>([]);
+  const [geofences, setGeofences] = useState<Map<string, string>>(new Map());
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
@@ -40,6 +49,7 @@ export default function AdminSubscriptions() {
     email: "",
     trustLevel: "",
   });
+  const [viewMode, setViewMode] = useViewMode("admin-subscriptions-view");
 
   const fetchSubscriptions = async () => {
     try {
@@ -62,6 +72,25 @@ export default function AdminSubscriptions() {
       setLoading(false);
     }
   };
+
+  // Fetch geofences for name resolution
+  useEffect(() => {
+    const fetchGeofences = async () => {
+      try {
+        const response = await fetch("/api/geofences");
+        if (!response.ok) return;
+
+        const data = await response.json();
+        const map = new Map<string, string>();
+        (data.data || data).forEach((g: Geofence) => map.set(g.id, g.name));
+        setGeofences(map);
+      } catch (err) {
+        console.error("Error fetching geofences:", err);
+      }
+    };
+
+    void fetchGeofences();
+  }, []);
 
   useEffect(() => {
     void fetchSubscriptions();
@@ -177,35 +206,39 @@ export default function AdminSubscriptions() {
     <AdminLayout>
       <div className="space-y-6">
         {/* Page Header */}
-        <div className="flex items-center justify-between">
-          <div>
-            <h2 className="text-2xl font-bold text-[color:var(--text-primary)]">
-              Subscriptions
-            </h2>
-            <p className="mt-1 text-sm text-[color:var(--text-secondary)]">
-              Manage all email subscriptions
-            </p>
-          </div>
-          {selectedIds.size > 0 && (
-            <button
-              onClick={handleBulkDelete}
-              className="rounded-lg bg-[color:var(--accent-danger)] px-4 py-2 text-sm font-medium text-white hover:opacity-90 transition"
-            >
-              Delete {selectedIds.size} selected
-            </button>
-          )}
+        <div>
+          <h2 className="text-2xl font-bold text-[color:var(--text-primary)]">
+            Subscriptions
+          </h2>
+          <p className="mt-1 text-sm text-[color:var(--text-secondary)]">
+            Manage all email subscriptions
+          </p>
         </div>
 
-        {/* Search */}
-        <div className="flex items-center gap-4">
-          <div className="flex-1">
+        {/* Filters and Actions */}
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex flex-1 gap-2">
+            {/* Search */}
             <input
               type="text"
               placeholder="Search by email..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full rounded-lg border border-[color:var(--border)] bg-[color:var(--background)] px-4 py-2 text-sm text-[color:var(--text-primary)] placeholder:text-[color:var(--text-tertiary)] focus:outline-none focus:ring-2 focus:ring-[color:var(--accent-primary)]"
+              className="flex-1 rounded-lg border border-[color:var(--border)] bg-[color:var(--surface)] px-4 py-2 text-sm text-[color:var(--text-primary)] placeholder:text-[color:var(--text-tertiary)] focus:border-[color:var(--accent-primary)] focus:outline-none focus:ring-1 focus:ring-[color:var(--accent-primary)]"
             />
+          </div>
+
+          {/* View Toggle and Bulk Actions */}
+          <div className="flex items-center gap-2">
+            {selectedIds.size > 0 && (
+              <button
+                onClick={handleBulkDelete}
+                className="rounded-lg bg-[color:var(--accent-danger)] px-4 py-2 text-sm font-medium text-white hover:bg-[color:var(--accent-danger)]/90 transition"
+              >
+                Delete Selected ({selectedIds.size})
+              </button>
+            )}
+            <ViewToggle value={viewMode} onChange={setViewMode} />
           </div>
         </div>
 
@@ -228,8 +261,36 @@ export default function AdminSubscriptions() {
           </div>
         )}
 
-        {/* Table */}
-        {!loading && !error && (
+        {/* Grid View */}
+        {!loading && !error && viewMode === "grid" && (
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {filteredSubscriptions.length === 0 ? (
+              <div className="col-span-full text-center py-12">
+                <p className="text-sm text-[color:var(--text-secondary)]">
+                  No subscriptions found
+                </p>
+              </div>
+            ) : (
+              filteredSubscriptions.map((subscription) => (
+                <SubscriptionAdminCard
+                  key={subscription.id}
+                  subscription={subscription}
+                  geofenceName={
+                    subscription.target.kind === "geofence"
+                      ? geofences.get(subscription.target.geofenceId)
+                      : null
+                  }
+                  selected={selectedIds.has(subscription.id)}
+                  onSelect={handleSelectOne}
+                  onDelete={handleDelete}
+                />
+              ))
+            )}
+          </div>
+        )}
+
+        {/* Table View */}
+        {!loading && !error && viewMode === "table" && (
           <div className="overflow-hidden rounded-lg border border-[color:var(--border)] bg-[color:var(--surface)]">
             <div className="overflow-x-auto">
               <table className="w-full">
