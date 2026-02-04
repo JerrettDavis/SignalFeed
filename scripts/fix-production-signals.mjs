@@ -9,7 +9,12 @@
 
 import postgres from 'postgres';
 
-const POSTGRES_URL = "process.env.POSTGRES_URL";
+const POSTGRES_URL = process.env.POSTGRES_URL;
+
+if (!POSTGRES_URL) {
+  console.error('Error: POSTGRES_URL environment variable is not set');
+  process.exit(1);
+}
 
 const sql = postgres(POSTGRES_URL);
 
