@@ -235,7 +235,7 @@ test.describe("Signal Analytics", () => {
 
     // Get the signal to check its category
     const signalResponse = await page.request.get(`/api/signals/${signalId}`);
-    const signalData = await signalResponse.json();
+    await signalResponse.json();
 
     // Track a view
     const viewResponse = await page.request.post(

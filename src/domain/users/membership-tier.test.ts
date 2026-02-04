@@ -6,7 +6,6 @@ import {
   validateGlobalSignalPermission,
   calculatePolygonAreaKm2,
   TIER_LIMITS,
-  type MembershipTier,
 } from "@/domain/users/membership-tier";
 
 describe("getTierLimits", () => {

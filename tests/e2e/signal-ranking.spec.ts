@@ -2,7 +2,6 @@ import { test, expect, type Page } from "@playwright/test";
 
 test.describe("Signal Ranking", () => {
   let testUserId: string;
-  let testUserEmail: string;
 
   // Helper function to register and login a test user
   const registerAndLogin = async (
@@ -22,7 +21,6 @@ test.describe("Signal Ranking", () => {
     expect(registerResponse.ok()).toBe(true);
     const registerData = await registerResponse.json();
     testUserId = registerData.data.user.id;
-    testUserEmail = email;
 
     // If not free tier, update the membership tier
     if (tier !== "free") {
@@ -164,7 +162,6 @@ test.describe("Signal Ranking", () => {
     const findSignal = (signals: { name: string }[], name: string) =>
       signals.find((s) => s.name === name);
 
-    const signal1 = findSignal(data1.data, "Location Signal - Tulsa");
     const signal2 = findSignal(data2.data, "Location Signal - Tulsa");
     const signal3 = findSignal(data3.data, "Location Signal - Tulsa");
 
@@ -461,7 +458,7 @@ test.describe("Signal Ranking", () => {
         isActive: true,
       },
     });
-    const communityData = await communityResponse.json();
+    await communityResponse.json();
 
     // Get ranked signals
     const response = await page.request.get("/api/signals");

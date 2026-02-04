@@ -68,7 +68,7 @@ export function SightingDrilldown({
     return null;
   }
 
-  const formatDate = (iso: string) => {
+  const _formatDate = (iso: string) => {
     const date = new Date(iso);
     return date.toLocaleString("en-US", {
       month: "short",

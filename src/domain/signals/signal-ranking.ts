@@ -2,7 +2,6 @@ import type { Signal, SignalClassification } from "./signal";
 import type { MembershipTier } from "@/domain/users/membership-tier";
 import type { CategoryId } from "@/domain/sightings/sighting";
 import type { SignalId } from "./signal";
-import type { UserId } from "@/domain/users/user";
 
 export type UserLocation = {
   lat: number;
@@ -83,7 +82,10 @@ export const getSignalRepresentativePoint = (
     return null; // No geographic location
   }
 
-  if (signal.target.kind === "polygon" && signal.target.polygon.points.length > 0) {
+  if (
+    signal.target.kind === "polygon" &&
+    signal.target.polygon.points.length > 0
+  ) {
     // Use centroid of polygon
     const points = signal.target.polygon.points;
     const lat = points.reduce((sum, p) => sum + p.lat, 0) / points.length;

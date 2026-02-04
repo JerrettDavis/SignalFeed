@@ -244,21 +244,24 @@ test.describe("Membership Tiers", () => {
 
     // Attempt to create a very large geofence (over 500km²)
     // Approximate area: ~1 degree x ~1 degree ≈ 12000km²
-    const veryLargeGeofenceResponse = await page.request.post("/api/geofences", {
-      data: {
-        name: "Very Large Geofence",
-        visibility: "public",
-        polygon: {
-          points: [
-            { lat: 36.0, lng: -96.0 },
-            { lat: 36.0, lng: -95.0 },
-            { lat: 37.0, lng: -95.0 },
-            { lat: 37.0, lng: -96.0 },
-          ],
+    const veryLargeGeofenceResponse = await page.request.post(
+      "/api/geofences",
+      {
+        data: {
+          name: "Very Large Geofence",
+          visibility: "public",
+          polygon: {
+            points: [
+              { lat: 36.0, lng: -96.0 },
+              { lat: 36.0, lng: -95.0 },
+              { lat: 37.0, lng: -95.0 },
+              { lat: 37.0, lng: -96.0 },
+            ],
+          },
+          ownerId: userId,
         },
-        ownerId: userId,
-      },
-    });
+      }
+    );
 
     // Should fail even for paid tier (exceeds 500km² limit)
     expect(veryLargeGeofenceResponse.status()).toBe(400);
@@ -604,7 +607,7 @@ test.describe("Membership Tiers", () => {
     page,
   }) => {
     // Register a user
-    const { userId } = await registerAndLogin(page, "free");
+    await registerAndLogin(page, "free");
 
     // Test the geofence validation endpoint
     const validationResponse = await page.request.post(
