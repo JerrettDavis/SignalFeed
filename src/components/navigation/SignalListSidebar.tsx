@@ -28,7 +28,7 @@ export default function SignalListSidebar() {
 
   async function fetchSignals() {
     try {
-      const res = await fetch("/api/signals");
+      const res = await fetch("/api/signals/active");
       if (!res.ok) throw new Error("Failed to fetch signals");
       const data = await res.json();
 
