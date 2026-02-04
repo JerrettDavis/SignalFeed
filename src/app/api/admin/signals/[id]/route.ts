@@ -53,32 +53,27 @@ export const PATCH = async (
   // Check if signal exists
   const signal = await repository.getById(signalId);
   if (!signal) {
-    return jsonNotFound({ message: "Signal not found." });
+    return jsonNotFound("Signal not found.");
   }
 
-  // Build update object
-  const update: {
-    name?: string;
-    description?: string;
-    classification?: SignalClassification;
-    isActive?: boolean;
-  } = {};
-
-  if (parsed.data.name !== undefined) {
-    update.name = parsed.data.name;
-  }
-  if (parsed.data.description !== undefined) {
-    update.description = parsed.data.description;
-  }
-  if (parsed.data.classification !== undefined) {
-    update.classification = parsed.data.classification as SignalClassification;
-  }
-  if (parsed.data.isActive !== undefined) {
-    update.isActive = parsed.data.isActive;
-  }
+  // Build updated signal by merging existing signal with changes
+  const signalToUpdate = {
+    ...signal,
+    ...(parsed.data.name !== undefined && { name: parsed.data.name }),
+    ...(parsed.data.description !== undefined && {
+      description: parsed.data.description,
+    }),
+    ...(parsed.data.classification !== undefined && {
+      classification: parsed.data.classification as SignalClassification,
+    }),
+    ...(parsed.data.isActive !== undefined && {
+      isActive: parsed.data.isActive,
+    }),
+    updatedAt: new Date().toISOString(),
+  };
 
   // Update signal
-  await repository.update(signalId, update);
+  await repository.update(signalToUpdate);
 
   // Fetch updated signal
   const updatedSignal = await repository.getById(signalId);
@@ -106,7 +101,7 @@ export const DELETE = async (
   // Check if signal exists
   const signal = await repository.getById(signalId);
   if (!signal) {
-    return jsonNotFound({ message: "Signal not found." });
+    return jsonNotFound("Signal not found.");
   }
 
   // Delete signal
