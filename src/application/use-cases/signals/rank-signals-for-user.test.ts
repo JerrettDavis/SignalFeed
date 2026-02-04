@@ -27,6 +27,8 @@ describe("buildRankSignalsForUser", () => {
   const mockUser: User = {
     id: "user-123" as UserId,
     email: "test@example.com",
+    role: "user",
+    status: "active",
     membershipTier: "free",
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
@@ -206,7 +208,9 @@ describe("buildRankSignalsForUser", () => {
     expect(result.ok).toBe(true);
     if (result.ok) {
       // Find the official signal
-      const officialSignal = result.value.find((s) => s.classification === "official");
+      const officialSignal = result.value.find(
+        (s) => s.classification === "official"
+      );
       expect(officialSignal).toBeDefined();
       expect(officialSignal?.id).toBe("signal-3");
       // Official signal should have very high rank score
@@ -336,9 +340,10 @@ describe("buildRankSignalsForUser", () => {
 
   it("respects privacy settings for personalization", async () => {
     mockPrivacyRepo = {
-      getByUserId: async () => ({
-        enablePersonalization: false,
-      } as UserPrivacySettings),
+      getByUserId: async () =>
+        ({
+          enablePersonalization: false,
+        }) as UserPrivacySettings,
     };
 
     mockCategoryInteractionRepo = {
@@ -378,9 +383,10 @@ describe("buildRankSignalsForUser", () => {
 
   it("applies category preference boost when personalization enabled", async () => {
     mockPrivacyRepo = {
-      getByUserId: async () => ({
-        enablePersonalization: true,
-      } as UserPrivacySettings),
+      getByUserId: async () =>
+        ({
+          enablePersonalization: true,
+        }) as UserPrivacySettings,
     };
 
     mockCategoryInteractionRepo = {
@@ -418,9 +424,10 @@ describe("buildRankSignalsForUser", () => {
 
   it("calculates distance when location ranking enabled", async () => {
     mockPrivacyRepo = {
-      getByUserId: async () => ({
-        enableLocationSharing: true,
-      } as UserPrivacySettings),
+      getByUserId: async () =>
+        ({
+          enableLocationSharing: true,
+        }) as UserPrivacySettings,
     };
 
     const rankSignals = buildRankSignalsForUser({
@@ -450,9 +457,10 @@ describe("buildRankSignalsForUser", () => {
 
   it("does not calculate distance when location ranking disabled", async () => {
     mockPrivacyRepo = {
-      getByUserId: async () => ({
-        enableLocationSharing: false,
-      } as UserPrivacySettings),
+      getByUserId: async () =>
+        ({
+          enableLocationSharing: false,
+        }) as UserPrivacySettings,
     };
 
     const rankSignals = buildRankSignalsForUser({
@@ -566,10 +574,11 @@ describe("buildRankSignalsForUser", () => {
 
   it("combines multiple preference factors correctly", async () => {
     mockPrivacyRepo = {
-      getByUserId: async () => ({
-        enablePersonalization: true,
-        enableLocationSharing: true,
-      } as UserPrivacySettings),
+      getByUserId: async () =>
+        ({
+          enablePersonalization: true,
+          enableLocationSharing: true,
+        }) as UserPrivacySettings,
     };
 
     mockCategoryInteractionRepo = {

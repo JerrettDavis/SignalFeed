@@ -186,6 +186,7 @@ describe("calculatePopularityScore", () => {
         viewCount: 50,
         uniqueViewers: 25,
         activeViewers: 5,
+        subscriberCount: 0,
         sightingCount: 10,
       },
     });
@@ -491,8 +492,18 @@ describe("calculateRankScore", () => {
       userLocation: { lat: 35.0, lng: -120.0 },
     };
 
-    const scoreWithBoost = calculateRankScore(signal, contextWithPref, false, 30);
-    const scoreWithoutBoost = calculateRankScore(signal, contextWithoutPref, false, 30);
+    const scoreWithBoost = calculateRankScore(
+      signal,
+      contextWithPref,
+      false,
+      30
+    );
+    const scoreWithoutBoost = calculateRankScore(
+      signal,
+      contextWithoutPref,
+      false,
+      30
+    );
 
     // Category boost reduces effective distance, increasing score
     expect(scoreWithBoost).toBeGreaterThan(scoreWithoutBoost);
@@ -509,9 +520,21 @@ describe("calculateRankScore", () => {
       classification: "community",
     });
 
-    const personalScore = calculateRankScore(personalSignal, baseContext, false);
-    const verifiedScore = calculateRankScore(verifiedSignal, baseContext, false);
-    const communityScore = calculateRankScore(communitySignal, baseContext, false);
+    const personalScore = calculateRankScore(
+      personalSignal,
+      baseContext,
+      false
+    );
+    const verifiedScore = calculateRankScore(
+      verifiedSignal,
+      baseContext,
+      false
+    );
+    const communityScore = calculateRankScore(
+      communitySignal,
+      baseContext,
+      false
+    );
 
     expect(verifiedScore).toBeGreaterThan(personalScore);
     expect(communityScore).toBeGreaterThan(verifiedScore);
@@ -538,10 +561,7 @@ describe("calculateRankScore", () => {
 });
 
 describe("sortByRankScore", () => {
-  const createRankedSignal = (
-    id: string,
-    rankScore: number
-  ): RankedSignal => ({
+  const createRankedSignal = (id: string, rankScore: number): RankedSignal => ({
     ...createMockSignal({ id: id as SignalId }),
     rankScore,
     isViralBoosted: false,

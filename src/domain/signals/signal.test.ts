@@ -224,6 +224,14 @@ describe("updateSignal", () => {
     triggers: ["new_sighting"],
     conditions: {},
     isActive: true,
+    classification: "community",
+    analytics: {
+      viewCount: 0,
+      uniqueViewers: 0,
+      activeViewers: 0,
+      subscriberCount: 0,
+      sightingCount: 0,
+    },
     createdAt: "2024-01-01T00:00:00Z",
     updatedAt: "2024-01-01T00:00:00Z",
   };
@@ -453,6 +461,14 @@ describe("shouldTrigger", () => {
     triggers: ["new_sighting", "sighting_confirmed"],
     conditions: {},
     isActive: true,
+    classification: "community",
+    analytics: {
+      viewCount: 0,
+      uniqueViewers: 0,
+      activeViewers: 0,
+      subscriberCount: 0,
+      sightingCount: 0,
+    },
     createdAt: "2024-01-01T00:00:00Z",
     updatedAt: "2024-01-01T00:00:00Z",
   };
