@@ -84,6 +84,7 @@ export async function GET(request: Request) {
         created?: number;
         updated?: number;
         failed?: number;
+        errors?: Array<{ externalId: string; message: string }>;
         error?: string;
       }>,
     };
@@ -103,11 +104,23 @@ export async function GET(request: Request) {
           created: feedResult.created,
           updated: feedResult.updated,
           failed: feedResult.failed,
+          errors:
+            feedResult.errors.length > 0
+              ? feedResult.errors.slice(0, 10)
+              : undefined, // Include first 10 errors
         });
 
         console.log(
           `[IngestFeeds:${feedName}] Success: ${feedResult.created} created, ${feedResult.updated} updated, ${feedResult.failed} failed`
         );
+
+        // Log first few errors for debugging
+        if (feedResult.errors.length > 0) {
+          console.log(`[IngestFeeds:${feedName}] First few errors:`);
+          feedResult.errors.slice(0, 3).forEach((err) => {
+            console.log(`  - ${err.externalId}: ${err.message}`);
+          });
+        }
       } else {
         summary.feedResults.push({
           feed: feedName,
