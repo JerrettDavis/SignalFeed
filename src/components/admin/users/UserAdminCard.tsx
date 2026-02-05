@@ -105,7 +105,10 @@ export const UserAdminCard = ({
         <div className="text-xs uppercase tracking-wider text-[color:var(--text-tertiary)] mb-1">
           Registered:
         </div>
-        <div className="text-sm text-[color:var(--text-secondary)]">
+        <div
+          className="text-sm text-[color:var(--text-secondary)]"
+          suppressHydrationWarning
+        >
           {new Date(user.createdAt).toLocaleDateString()}
         </div>
       </div>

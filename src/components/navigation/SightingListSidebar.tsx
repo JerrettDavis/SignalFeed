@@ -110,7 +110,10 @@ export default function SightingListSidebar({
                   {sighting.status}
                 </span>
               </div>
-              <div className="text-xs text-[color:var(--text-tertiary)] mt-2">
+              <div
+                className="text-xs text-[color:var(--text-tertiary)] mt-2"
+                suppressHydrationWarning
+              >
                 {new Date(sighting.observedAt).toLocaleString()}
               </div>
             </button>

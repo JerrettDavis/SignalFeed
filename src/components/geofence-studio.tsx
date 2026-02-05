@@ -388,7 +388,10 @@ export const GeofenceStudio = () => {
               <p className="text-sm font-medium text-[color:var(--text-primary)]">
                 {geofence.name}
               </p>
-              <p className="text-xs text-[color:var(--text-tertiary)] mt-1">
+              <p
+                className="text-xs text-[color:var(--text-tertiary)] mt-1"
+                suppressHydrationWarning
+              >
                 {geofence.polygon.points.length} points • Created{" "}
                 {new Date(geofence.createdAt).toLocaleDateString()}
               </p>

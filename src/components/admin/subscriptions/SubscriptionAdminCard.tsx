@@ -119,7 +119,10 @@ export const SubscriptionAdminCard = ({
       </div>
 
       {/* Created Date */}
-      <div className="flex items-center gap-2 mb-3 text-xs text-[color:var(--text-tertiary)]">
+      <div
+        className="flex items-center gap-2 mb-3 text-xs text-[color:var(--text-tertiary)]"
+        suppressHydrationWarning
+      >
         <Calendar size={14} />
         Created: {new Date(subscription.createdAt).toLocaleDateString()}
       </div>

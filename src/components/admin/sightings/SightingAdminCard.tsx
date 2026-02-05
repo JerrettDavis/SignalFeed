@@ -96,7 +96,10 @@ export const SightingAdminCard = ({
       </p>
 
       {/* Metadata */}
-      <div className="flex items-center gap-4 mb-3 text-xs text-[color:var(--text-tertiary)]">
+      <div
+        className="flex items-center gap-4 mb-3 text-xs text-[color:var(--text-tertiary)]"
+        suppressHydrationWarning
+      >
         <div className="flex items-center gap-1.5">
           <Calendar size={14} />
           {new Date(sighting.observedAt).toLocaleDateString()}

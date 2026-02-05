@@ -347,7 +347,9 @@ export function SignalDetails({
             <span>{subscriberCount} subscribers</span>
           </div>
           <span>•</span>
-          <span>Created {new Date(signal.createdAt).toLocaleDateString()}</span>
+          <span suppressHydrationWarning>
+            Created {new Date(signal.createdAt).toLocaleDateString()}
+          </span>
         </div>
       </div>
 
@@ -450,7 +452,10 @@ export function SignalDetails({
                 <div className="text-sm font-medium text-[color:var(--text-primary)]">
                   {sighting.description}
                 </div>
-                <div className="mt-1 text-xs text-[color:var(--text-secondary)]">
+                <div
+                  className="mt-1 text-xs text-[color:var(--text-secondary)]"
+                  suppressHydrationWarning
+                >
                   {new Date(sighting.observedAt).toLocaleString()}
                 </div>
               </div>

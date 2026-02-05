@@ -392,7 +392,10 @@ export function SignalCard({
       </div>
 
       {/* Footer Metadata */}
-      <div className="border-t border-white/50 bg-white/40 px-5 py-3 text-xs text-[color:var(--text-tertiary)]">
+      <div
+        className="border-t border-white/50 bg-white/40 px-5 py-3 text-xs text-[color:var(--text-tertiary)]"
+        suppressHydrationWarning
+      >
         Created {new Date(signal.createdAt).toLocaleDateString()}
         {signal.updatedAt !== signal.createdAt && (
           <> • Updated {new Date(signal.updatedAt).toLocaleDateString()}</>

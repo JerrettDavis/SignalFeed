@@ -81,7 +81,10 @@ export const GeofenceAdminCard = ({
       </div>
 
       {/* Metadata */}
-      <div className="mb-3 text-xs text-[color:var(--text-tertiary)] space-y-1">
+      <div
+        className="mb-3 text-xs text-[color:var(--text-tertiary)] space-y-1"
+        suppressHydrationWarning
+      >
         <div>Created: {new Date(geofence.createdAt).toLocaleDateString()}</div>
         {geofence.ownerId && <div>Owner ID: {geofence.ownerId}</div>}
       </div>

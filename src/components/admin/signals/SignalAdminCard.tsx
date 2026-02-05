@@ -209,7 +209,10 @@ export const SignalAdminCard = ({
       </div>
 
       {/* Footer Metadata */}
-      <div className="text-xs text-[color:var(--text-tertiary)] mt-3 pt-3 border-t border-[color:var(--border)]">
+      <div
+        className="text-xs text-[color:var(--text-tertiary)] mt-3 pt-3 border-t border-[color:var(--border)]"
+        suppressHydrationWarning
+      >
         <div>Created: {new Date(signal.createdAt).toLocaleDateString()}</div>
         <div>Updated: {new Date(signal.updatedAt).toLocaleDateString()}</div>
       </div>

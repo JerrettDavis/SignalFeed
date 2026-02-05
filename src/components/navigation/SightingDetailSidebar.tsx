@@ -136,7 +136,7 @@ export default function SightingDetailSidebar({
           <Calendar size={16} className="mt-1" />
           <div>
             <div className="text-sm font-medium">Observed At</div>
-            <div className="text-sm">
+            <div className="text-sm" suppressHydrationWarning>
               {new Date(sighting.observedAt).toLocaleString()}
             </div>
           </div>
