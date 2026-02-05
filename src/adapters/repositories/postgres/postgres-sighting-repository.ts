@@ -36,15 +36,20 @@ const mapRow = (row: Record<string, unknown>): Sighting => {
     score: row.score != null ? Number(row.score) : 0,
     hotScore: row.hot_score != null ? Number(row.hot_score) : 0,
     // New flair and scoring fields
-    timeAdjustedScore: row.time_adjusted_score != null ? Number(row.time_adjusted_score) : 0,
-    relevanceScore: row.relevance_score != null ? Number(row.relevance_score) : 1.0,
+    timeAdjustedScore:
+      row.time_adjusted_score != null ? Number(row.time_adjusted_score) : 0,
+    relevanceScore:
+      row.relevance_score != null ? Number(row.relevance_score) : 1.0,
     decayRate: row.decay_rate != null ? Number(row.decay_rate) : undefined,
     lastScoreUpdate: row.last_score_update
       ? new Date(row.last_score_update as string).toISOString()
       : new Date().toISOString(),
     flairCount: row.flair_count != null ? Number(row.flair_count) : 0,
-    primaryFlairId: row.primary_flair_id ? String(row.primary_flair_id) : undefined,
-    visibilityState: (row.visibility_state as Sighting["visibilityState"]) ?? "visible",
+    primaryFlairId: row.primary_flair_id
+      ? String(row.primary_flair_id)
+      : undefined,
+    visibilityState:
+      (row.visibility_state as Sighting["visibilityState"]) ?? "visible",
   };
 };
 
@@ -142,6 +147,17 @@ export const postgresSightingRepository = (): SightingRepository => {
       }
       return mapRow(rows[0]);
     },
+    async findByExternalId(externalId: string) {
+      const rows = await sql`
+        select * from sightings
+        where fields->>'externalId' = ${externalId}
+        limit 1
+      `;
+      if (!rows.length) {
+        return null;
+      }
+      return mapRow(rows[0]);
+    },
     async list(filters: SightingFilters) {
       // Build WHERE clause conditions
       const conditions: string[] = [];
@@ -189,7 +205,8 @@ export const postgresSightingRepository = (): SightingRepository => {
       const hotScore = sighting.hotScore ?? 0;
       const timeAdjustedScore = sighting.timeAdjustedScore ?? 0;
       const relevanceScore = sighting.relevanceScore ?? 1.0;
-      const lastScoreUpdate = sighting.lastScoreUpdate ?? new Date().toISOString();
+      const lastScoreUpdate =
+        sighting.lastScoreUpdate ?? new Date().toISOString();
       const flairCount = sighting.flairCount ?? 0;
       const visibilityState = sighting.visibilityState ?? "visible";
 

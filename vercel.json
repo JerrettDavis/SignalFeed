@@ -25,5 +25,11 @@
       ]
     }
   ],
-  "regions": ["iad1"]
+  "regions": ["iad1"],
+  "crons": [
+    {
+      "path": "/api/cron/ingest-feeds",
+      "schedule": "*/15 * * * *"
+    }
+  ]
 }

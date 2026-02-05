@@ -61,6 +61,24 @@ export const inMemorySightingRepository = (): SightingRepository => {
         hotScore: sighting.hotScore ?? 0,
       };
     },
+    async findByExternalId(externalId: string) {
+      const values = Array.from(store.values());
+      const sighting = values.find((s) => s.fields.externalId === externalId);
+      if (!sighting) {
+        return null;
+      }
+      // Ensure backward compatibility by providing default values
+      return {
+        ...sighting,
+        upvotes: sighting.upvotes ?? 0,
+        downvotes: sighting.downvotes ?? 0,
+        confirmations: sighting.confirmations ?? 0,
+        disputes: sighting.disputes ?? 0,
+        spamReports: sighting.spamReports ?? 0,
+        score: sighting.score ?? 0,
+        hotScore: sighting.hotScore ?? 0,
+      };
+    },
     async list(filters: SightingFilters) {
       const values = Array.from(store.values());
       const filtered = values.filter((sighting) => {
