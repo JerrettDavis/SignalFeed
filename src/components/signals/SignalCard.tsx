@@ -398,7 +398,10 @@ export function SignalCard({
       >
         Created {new Date(signal.createdAt).toLocaleDateString()}
         {signal.updatedAt !== signal.createdAt && (
-          <> • Updated {new Date(signal.updatedAt).toLocaleDateString()}</>
+          <span suppressHydrationWarning>
+            {" "}
+            • Updated {new Date(signal.updatedAt).toLocaleDateString()}
+          </span>
         )}
       </div>
     </div>
