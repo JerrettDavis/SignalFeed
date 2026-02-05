@@ -29,7 +29,7 @@
   "crons": [
     {
       "path": "/api/cron/ingest-feeds",
-      "schedule": "*/15 * * * *"
+      "schedule": "0 0 * * *"
     }
   ]
 }
