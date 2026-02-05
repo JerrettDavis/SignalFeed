@@ -106,7 +106,10 @@ function CommentItem({
           <span className="text-xs font-medium text-[color:var(--text-primary)]">
             User {comment.userId.slice(-6)}
           </span>
-          <span className="text-xs text-[color:var(--text-tertiary)]">
+          <span
+            className="text-xs text-[color:var(--text-tertiary)]"
+            suppressHydrationWarning
+          >
             {formatRelativeTime(comment.createdAt)}
           </span>
           {comment.createdAt !== comment.updatedAt && (

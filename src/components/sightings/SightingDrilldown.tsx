@@ -222,7 +222,10 @@ export function SightingDrilldown({
                     <dt className="text-[color:var(--text-tertiary)]">
                       Observed
                     </dt>
-                    <dd className="text-[color:var(--text-secondary)]">
+                    <dd
+                      className="text-[color:var(--text-secondary)]"
+                      suppressHydrationWarning
+                    >
                       {formatRelativeTime(sighting.observedAt)}
                     </dd>
                   </div>
@@ -230,7 +233,10 @@ export function SightingDrilldown({
                     <dt className="text-[color:var(--text-tertiary)]">
                       Reported
                     </dt>
-                    <dd className="text-[color:var(--text-secondary)]">
+                    <dd
+                      className="text-[color:var(--text-secondary)]"
+                      suppressHydrationWarning
+                    >
                       {formatRelativeTime(sighting.createdAt)}
                     </dd>
                   </div>
