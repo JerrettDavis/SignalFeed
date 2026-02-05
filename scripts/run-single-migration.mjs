@@ -36,7 +36,7 @@ function loadEnv() {
         process.env[key] = value;
       }
     });
-  } catch (error) {
+  } catch {
     console.error('⚠️  Could not load .env.production.local');
   }
 }
@@ -81,7 +81,7 @@ async function main() {
   try {
     await runMigration();
     console.log('\n✨ Done!');
-  } catch (error) {
+  } catch {
     console.error('\n❌ Migration failed');
     process.exit(1);
   } finally {

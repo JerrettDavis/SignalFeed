@@ -56,7 +56,7 @@ function loadEnv() {
       
       console.log(`✅ Loaded environment from ${envFile}`);
       return;
-    } catch (error) {
+    } catch {
       // Try next file
       continue;
     }
@@ -79,30 +79,6 @@ if (!databaseUrl) {
 }
 
 const sql = postgres(databaseUrl);
-
-// Helper to load seed data module
-async function loadSeedModule() {
-  // Read the seed file content
-  const seedPath = join(__dirname, '../src/data/seed.ts');
-  const taxonomyPath = join(__dirname, '../src/data/taxonomy-seed.ts');
-
-  // For now, we'll define the data inline since importing TS directly is complex
-  // In production, you might want to build the project first or use ts-node
-
-  console.log('📦 Loading seed data...');
-
-  return {
-    // Will be populated with actual data below
-    categories: [],
-    subcategories: [],
-    sightingTypes: [],
-    users: [],
-    geofences: [],
-    sightings: [],
-    subscriptions: [],
-    signals: [],
-  };
-}
 
 async function seedTaxonomy() {
   console.log('\n📚 Seeding taxonomy data...');

@@ -53,9 +53,10 @@ const createMockRepository = (): SightingRepository => {
   };
 };
 
-// Mock ID generator
+// Mock ID generator with counter to ensure unique IDs
+let idCounter = 0;
 const mockIdGenerator: IdGenerator = {
-  nextId: () => `sight-${Date.now()}` as SightingId,
+  nextId: () => `sight-${Date.now()}-${idCounter++}` as SightingId,
 };
 
 // Mock clock
