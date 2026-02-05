@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { buildCreateSignal } from "@/application/use-cases/signals/create-signal";
 import { buildRankSignalsForUser } from "@/application/use-cases/signals/rank-signals-for-user";
+import { buildListSignals } from "@/application/use-cases/signals/list-signals";
 import {
   getSignalRepository,
   getUserRepository,
@@ -26,72 +27,94 @@ export const runtime = "nodejs";
 /**
  * GET /api/signals
  *
- * Returns ranked list of signals for the authenticated user.
- * Ranking considers:
+ * Returns list of signals (personalized if authenticated).
+ *
+ * For authenticated users, ranking considers:
  * - User location (if shared)
  * - User category preferences (if personalization enabled)
  * - Signal classification, popularity, and viral status
  * - User preferences (hidden, pinned, unimportant)
  *
+ * For anonymous users, returns basic list sorted by:
+ * - Classification (official > community > verified > personal)
+ * - Popularity (subscribers)
+ * - Recency
+ *
  * Query params:
- * - lat, lng: User location for distance-based ranking
- * - includeHidden: Include hidden signals (default: false)
+ * - lat, lng: User location for distance-based ranking (authenticated only)
+ * - includeHidden: Include hidden signals (authenticated only, default: false)
  */
 export async function GET(req: NextRequest) {
   try {
-    // Get authenticated user
+    // Check for authenticated user (optional)
     const cookieStore = await cookies();
     const sessionData = cookieStore.get("session_data");
 
-    if (!sessionData) {
-      return NextResponse.json(
-        { error: "Unauthorized. Please sign in." },
-        { status: 401 }
-      );
-    }
-
-    const session = JSON.parse(sessionData.value);
-    if (new Date(session.expiresAt) < new Date()) {
-      return NextResponse.json(
-        { error: "Session expired. Please sign in again." },
-        { status: 401 }
-      );
-    }
-
-    const userId = session.userId;
-
-    // Parse query params
-    const { searchParams } = new URL(req.url);
-    const lat = searchParams.get("lat");
-    const lng = searchParams.get("lng");
-    const includeHidden = searchParams.get("includeHidden") === "true";
-
-    // Parse location if provided
-    let userLocation: { lat: number; lng: number } | undefined;
-    if (lat && lng) {
-      const latNum = parseFloat(lat);
-      const lngNum = parseFloat(lng);
-      if (!isNaN(latNum) && !isNaN(lngNum)) {
-        userLocation = { lat: latNum, lng: lngNum };
+    let userId: string | undefined;
+    if (sessionData) {
+      const session = JSON.parse(sessionData.value);
+      if (new Date(session.expiresAt) >= new Date()) {
+        userId = session.userId;
       }
     }
 
-    // Build use case
-    const rankSignalsForUser = buildRankSignalsForUser({
+    // If authenticated, use personalized ranking
+    if (userId) {
+      // Parse query params
+      const { searchParams } = new URL(req.url);
+      const lat = searchParams.get("lat");
+      const lng = searchParams.get("lng");
+      const includeHidden = searchParams.get("includeHidden") === "true";
+
+      // Parse location if provided
+      let userLocation: { lat: number; lng: number } | undefined;
+      if (lat && lng) {
+        const latNum = parseFloat(lat);
+        const lngNum = parseFloat(lng);
+        if (!isNaN(latNum) && !isNaN(lngNum)) {
+          userLocation = { lat: latNum, lng: lngNum };
+        }
+      }
+
+      // Build personalized use case
+      const rankSignalsForUser = buildRankSignalsForUser({
+        signalRepository: getSignalRepository(),
+        userRepository: getUserRepository(),
+        userPrivacySettingsRepository: getUserPrivacySettingsRepository(),
+        userCategoryInteractionRepository:
+          getUserCategoryInteractionRepository(),
+        userSignalPreferenceRepository: getUserSignalPreferenceRepository(),
+        signalActivitySnapshotRepository: getSignalActivitySnapshotRepository(),
+        geofenceRepository: getGeofenceRepository(),
+      });
+
+      // Execute personalized use case
+      const result = await rankSignalsForUser({
+        userId,
+        userLocation,
+        includeHidden,
+      });
+
+      if (!result.ok) {
+        return NextResponse.json(
+          {
+            error: result.error.message,
+            code: result.error.code,
+          },
+          { status: 400 }
+        );
+      }
+
+      return jsonOk({ data: result.value });
+    }
+
+    // Anonymous user - use basic listing
+    const listSignals = buildListSignals({
       signalRepository: getSignalRepository(),
-      userRepository: getUserRepository(),
-      userPrivacySettingsRepository: getUserPrivacySettingsRepository(),
-      userCategoryInteractionRepository: getUserCategoryInteractionRepository(),
-      userSignalPreferenceRepository: getUserSignalPreferenceRepository(),
-      signalActivitySnapshotRepository: getSignalActivitySnapshotRepository(),
-      geofenceRepository: getGeofenceRepository(),
     });
 
-    // Execute use case
-    const result = await rankSignalsForUser({
-      userId,
-      userLocation,
-      includeHidden,
+    const result = await listSignals({
+      filters: { isActive: true }, // Only show active signals to anonymous users
     });
 
     if (!result.ok) {
@@ -106,7 +129,7 @@ export async function GET(req: NextRequest) {
 
     return jsonOk({ data: result.value });
   } catch (error) {
-    console.error("Error ranking signals:", error);
+    console.error("Error fetching signals:", error);
     return NextResponse.json(
       { error: "Internal server error" },
       { status: 500 }
