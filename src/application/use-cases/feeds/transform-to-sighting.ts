@@ -25,6 +25,22 @@ const SEVERITY_MAPPING: Record<FeedItem["severity"], SightingImportance> = {
   critical: "critical",
 };
 
+// Domain validation limits from sighting.ts
+const MAX_DESCRIPTION_LENGTH = 1000;
+const MAX_DETAILS_LENGTH = 2000;
+
+/**
+ * Truncate text to max length, adding ellipsis if truncated
+ */
+function truncate(
+  text: string | undefined,
+  maxLength: number
+): string | undefined {
+  if (!text) return text;
+  if (text.length <= maxLength) return text;
+  return text.slice(0, maxLength - 3) + "...";
+}
+
 /**
  * Transforms a FeedItem from an external source into a NewSighting
  * that can be created in the SightSignal system.
@@ -60,8 +76,8 @@ export function transformToSighting(
       lat: item.location.lat,
       lng: item.location.lng,
     },
-    description: item.title,
-    details: item.description,
+    description: truncate(item.title, MAX_DESCRIPTION_LENGTH) || item.title,
+    details: truncate(item.description, MAX_DETAILS_LENGTH),
     importance,
     observedAt: item.observedAt.toISOString(),
     fields,
