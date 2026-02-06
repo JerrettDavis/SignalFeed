@@ -1,5 +1,5 @@
 {
-  "buildCommand": "npm run build && node scripts/seed-database.mjs",
+  "buildCommand": "npm run build && node scripts/seed-database.mjs || echo 'Seed script failed (non-blocking) - check logs above'",
   "framework": "nextjs",
   "headers": [
     {

@@ -535,7 +535,11 @@ async function main() {
     console.log('  - 5 subscriptions');
     console.log('  - 16 signals (including All Sightings)');
   } catch (error) {
-    console.error('\n❌ Error during seeding:', error);
+    console.error('\n❌ Error during seeding:', error.message || error);
+    if (error.query) console.error('Failed query:', error.query);
+    if (error.detail) console.error('Detail:', error.detail);
+    if (error.table) console.error('Table:', error.table);
+    if (error.column) console.error('Column:', error.column);
     process.exit(1);
   } finally {
     await sql.end();
