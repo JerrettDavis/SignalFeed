@@ -759,6 +759,27 @@ export const seedSubscriptions: Subscription[] = [
 
 export const seedSignals: Signal[] = [
   {
+    id: "signal-all" as SignalId,
+    name: "All Sightings",
+    description: "All sightings across all areas",
+    ownerId: "seed-user-admin" as UserId,
+    target: { kind: "global" },
+    triggers: ["new_sighting"],
+    conditions: {},
+    isActive: true,
+    classification: "official",
+    analytics: {
+      viewCount: 12456,
+      uniqueViewers: 5234,
+      activeViewers: 234,
+      lastViewedAt: "2026-01-24T11:10:00.000Z",
+      subscriberCount: 4200,
+      sightingCount: 20,
+    },
+    createdAt: "2025-01-01T00:00:00.000Z",
+    updatedAt: baseTime,
+  },
+  {
     id: "seed-signal-001" as SignalId,
     name: "School Zone Safety Alerts",
     description: "Critical safety alerts near Edison High School",
@@ -1050,7 +1071,8 @@ export const seedSignals: Signal[] = [
   {
     id: "seed-signal-013" as SignalId,
     name: "Official Road Closures & Construction",
-    description: "City-maintained alerts for road work and infrastructure projects",
+    description:
+      "City-maintained alerts for road work and infrastructure projects",
     ownerId: "seed-user-admin" as UserId,
     target: { kind: "global" },
     triggers: ["new_sighting"],
@@ -1076,7 +1098,8 @@ export const seedSignals: Signal[] = [
   {
     id: "seed-signal-014" as SignalId,
     name: "Blue Dome District Nightlife",
-    description: "Events and happenings in the Blue Dome entertainment district",
+    description:
+      "Events and happenings in the Blue Dome entertainment district",
     ownerId: "seed-user-009" as UserId,
     target: { kind: "geofence", geofenceId: "seed-geofence-011" as GeofenceId },
     triggers: ["new_sighting"],

@@ -68,13 +68,21 @@ function loadEnv() {
 loadEnv();
 
 // Get database URL from environment (support both new and legacy names)
-const databaseUrl = 
-  process.env.SIGNALFEED_DATABASE_URL || 
-  process.env.SIGHTSIGNAL_DATABASE_URL;
+const databaseUrl =
+  process.env.SIGNALFEED_DATABASE_URL ||
+  process.env.SIGHTSIGNAL_DATABASE_URL ||
+  process.env.DATABASE_URL ||
+  process.env.POSTGRES_URL ||
+  process.env.POSTGRES_PRISMA_URL;
 
 if (!databaseUrl) {
+  // When run as part of the build, skip seeding if no DB is configured
+  if (process.env.VERCEL || process.env.CI) {
+    console.log('⚠️  No database URL found, skipping seed (memory-only mode)');
+    process.exit(0);
+  }
   console.error('❌ Error: Database URL environment variable is not set');
-  console.error('Please set SIGNALFEED_DATABASE_URL or SIGHTSIGNAL_DATABASE_URL in your .env.local file');
+  console.error('Please set SIGNALFEED_DATABASE_URL, POSTGRES_URL, or SIGHTSIGNAL_DATABASE_URL');
   process.exit(1);
 }
 
@@ -185,19 +193,31 @@ async function seedUsers() {
   console.log('\n👥 Seeding users...');
 
   const baseTime = '2026-01-24T09:00:00.000Z';
+  // [id, email, username, role, status, membershipTier]
   const users = [
-    ['seed-user-admin', 'admin@sightsignal.local', 'admin', 'admin', 'active'],
-    ['seed-user-001', 'moderator@sightsignal.local', 'mod_sarah', 'moderator', 'active'],
-    ['seed-user-002', 'john.doe@example.com', 'john_downtown', 'user', 'active'],
-    ['seed-user-003', 'jane.smith@example.com', 'jane_parks', 'user', 'active'],
-    ['seed-user-004', 'bob.wilson@example.com', 'bob_commuter', 'user', 'active'],
-    ['seed-user-005', 'suspended@example.com', 'suspended_user', 'user', 'suspended'],
+    // Admin users
+    ['seed-user-admin', 'admin@sightsignal.local', 'admin', 'admin', 'active', 'admin'],
+    ['seed-user-admin-2', 'city-admin@sightsignal.local', 'city_admin', 'admin', 'active', 'admin'],
+    // Moderator - paid tier
+    ['seed-user-001', 'moderator@sightsignal.local', 'mod_sarah', 'moderator', 'active', 'paid'],
+    // Paid tier users
+    ['seed-user-002', 'john.doe@example.com', 'john_downtown', 'user', 'active', 'paid'],
+    ['seed-user-006', 'maria.garcia@example.com', 'maria_tulsa', 'user', 'active', 'paid'],
+    // Free tier users
+    ['seed-user-003', 'jane.smith@example.com', 'jane_parks', 'user', 'active', 'free'],
+    ['seed-user-004', 'bob.wilson@example.com', 'bob_commuter', 'user', 'active', 'free'],
+    ['seed-user-007', 'alex.jones@example.com', 'alex_explorer', 'user', 'active', 'free'],
+    ['seed-user-008', 'lisa.brown@example.com', 'lisa_brookside', 'user', 'active', 'free'],
+    ['seed-user-009', 'chris.taylor@example.com', 'chris_local', 'user', 'active', 'free'],
+    ['seed-user-010', 'sam.nguyen@example.com', 'sam_observer', 'user', 'active', 'free'],
+    // Suspended user
+    ['seed-user-005', 'suspended@example.com', 'suspended_user', 'user', 'suspended', 'free'],
   ];
 
-  for (const [id, email, username, role, status] of users) {
+  for (const [id, email, username, role, status, membershipTier] of users) {
     await sql`
-      INSERT INTO users (id, email, username, role, status, created_at, updated_at)
-      VALUES (${id}, ${email}, ${username}, ${role}, ${status}, ${baseTime}, ${baseTime})
+      INSERT INTO users (id, email, username, role, status, membership_tier, created_at, updated_at)
+      VALUES (${id}, ${email}, ${username}, ${role}, ${status}, ${membershipTier}, ${baseTime}, ${baseTime})
       ON CONFLICT (id) DO NOTHING
     `;
   }
@@ -228,12 +248,28 @@ async function seedGeofences() {
       [36.1340, -95.9785]
     ]],
 
+    // University District
+    ['seed-geofence-005', 'University District, Tulsa, OK', 'public', [
+      [36.152, -95.945],
+      [36.152, -95.938],
+      [36.146, -95.938],
+      [36.146, -95.945]
+    ]],
+
     // Brady Arts District (downtown arts area)
     ['seed-geofence-006', 'Brady Arts District, Tulsa, OK', 'public', [
       [36.1610, -95.9910],
       [36.1610, -95.9860],
       [36.1560, -95.9860],
       [36.1560, -95.9910]
+    ]],
+
+    // Brookside neighborhood (private)
+    ['seed-geofence-007', 'Brookside neighborhood, Tulsa, OK', 'private', [
+      [36.124, -95.985],
+      [36.124, -95.979],
+      [36.119, -95.979],
+      [36.119, -95.985]
     ]],
 
     // Edison High School area (31st & Lewis)
@@ -252,20 +288,28 @@ async function seedGeofences() {
       [36.1320, -95.9790]
     ]],
 
-    // Brookside District (around 33rd to 51st & Peoria)
-    ['seed-geofence-010', 'Brookside District, Tulsa, OK', 'public', [
-      [36.1290, -95.9810],
-      [36.1290, -95.9760],
-      [36.1180, -95.9760],
-      [36.1180, -95.9810]
+    // Pearl District
+    ['seed-geofence-010', 'Pearl District, Tulsa, OK', 'public', [
+      [36.164, -95.983],
+      [36.164, -95.977],
+      [36.16, -95.977],
+      [36.16, -95.983]
     ]],
 
-    // Downtown Tulsa (main business district) - already includes location
-    ['seed-geofence-011', 'Downtown Tulsa', 'public', [
-      [36.1580, -95.9950],
-      [36.1580, -95.9880],
-      [36.1490, -95.9880],
-      [36.1490, -95.9950]
+    // Blue Dome District
+    ['seed-geofence-011', 'Blue Dome District, Tulsa, OK', 'public', [
+      [36.1565, -95.991],
+      [36.1565, -95.986],
+      [36.1535, -95.986],
+      [36.1535, -95.991]
+    ]],
+
+    // Tulsa Zoo area
+    ['seed-geofence-012', 'Tulsa Zoo area, Tulsa, OK', 'public', [
+      [36.067, -95.898],
+      [36.067, -95.892],
+      [36.063, -95.892],
+      [36.063, -95.898]
     ]],
 
     // Midtown corridor (private - around 21st & Utica)
@@ -274,6 +318,22 @@ async function seedGeofences() {
       [36.1400, -95.9690],
       [36.1340, -95.9690],
       [36.1340, -95.9740]
+    ]],
+
+    // Turkey Mountain trails
+    ['seed-geofence-014', 'Turkey Mountain trails, Tulsa, OK', 'public', [
+      [36.072, -96.045],
+      [36.072, -96.038],
+      [36.065, -96.038],
+      [36.065, -96.045]
+    ]],
+
+    // Industrial warehouse district (private)
+    ['seed-geofence-015', 'Industrial warehouse district, Tulsa, OK', 'private', [
+      [36.17, -95.955],
+      [36.17, -95.945],
+      [36.165, -95.945],
+      [36.165, -95.955]
     ]],
   ];
 
@@ -356,9 +416,11 @@ async function seedSubscriptions() {
 
   const baseTime = '2026-01-24T09:00:00.000Z';
   const subscriptions = [
-    ['seed-subscription-001', 'alerts@example.com', 'geofence', 'seed-geofence-001', ['cat-nature'], ['type-birds'], 'all'],
+    ['seed-subscription-001', 'alerts@example.com', 'geofence', 'seed-geofence-003', ['cat-wildlife'], ['type-birds'], 'all'],
     ['seed-subscription-002', 'safety@tulsa.local', 'geofence', 'seed-geofence-008', ['cat-public-safety', 'cat-hazards'], ['type-road-hazards', 'type-suspicious-activity'], 'vetted'],
     ['seed-subscription-003', 'downtown@resident.com', 'geofence', 'seed-geofence-011', ['cat-hazards', 'cat-transportation'], ['type-roadwork', 'type-road-hazards'], 'all'],
+    ['seed-subscription-004', 'parks@naturelover.org', 'geofence', 'seed-geofence-004', ['cat-wildlife', 'cat-community-events'], ['type-birds', 'type-music-festival'], 'vetted'],
+    ['seed-subscription-005', 'commuter@example.net', 'geofence', 'seed-geofence-013', ['cat-transportation', 'cat-hazards'], ['type-pothole-repair', 'type-heavy-traffic'], 'raw'],
   ];
 
   for (const [id, email, targetKind, geofenceId, categoryIds, typeIds, trustLevel] of subscriptions) {
@@ -381,30 +443,69 @@ async function seedSignals() {
   console.log('\n🔔 Seeding signals...');
 
   const baseTime = '2026-01-24T09:00:00.000Z';
+  // [id, name, description, ownerId, targetKind, geofenceId, triggers, conditions, isActive, classification, analytics]
   const signals = [
-    ['seed-signal-001', 'School Zone Safety Alerts', 'Critical safety alerts near Edison High School', 'seed-user-001', 'geofence', 'seed-geofence-008', ['new_sighting'], { categoryIds: ['cat-public-safety', 'cat-hazards'], importance: 'high' }, true],
-    ['seed-signal-002', 'Downtown Traffic Monitoring', 'Traffic and road hazard alerts for downtown commuters', 'seed-user-002', 'geofence', 'seed-geofence-011', ['new_sighting', 'score_threshold'], { categoryIds: ['cat-transportation', 'cat-infrastructure'], scoreThreshold: 3 }, true],
-    ['seed-signal-003', 'Wildlife in Gathering Place', 'Wildlife sightings in Gathering Place Park', 'seed-user-003', 'geofence', 'seed-geofence-004', ['new_sighting', 'sighting_confirmed'], { categoryIds: ['cat-wildlife'] }, true],
-    ['seed-signal-004', 'Arts District Events', 'Community events and activities in the Arts District', 'seed-user-001', 'geofence', 'seed-geofence-006', ['new_sighting'], { categoryIds: ['cat-community-events', 'cat-market-activity'] }, true],
-    ['seed-signal-005', 'Emergency Alerts - Citywide', 'High-priority emergency alerts across all of Tulsa', 'seed-user-admin', 'global', null, ['new_sighting'], { categoryIds: ['cat-public-safety'], importance: 'high' }, true],
-    ['seed-signal-006', 'River Parks Trail Updates', 'Trail conditions and wildlife along River Parks', 'seed-user-002', 'geofence', 'seed-geofence-009', ['new_sighting'], { categoryIds: ['cat-wildlife', 'cat-hazards'] }, true],
-    ['seed-signal-007', 'Cherry Street Food Scene', 'Food trucks and restaurant deals in Cherry Street', 'seed-user-003', 'geofence', 'seed-geofence-003', ['new_sighting', 'sighting_confirmed'], { categoryIds: ['cat-food-drink'] }, true],
-    ['seed-signal-008', 'Inactive Test Signal', 'Test signal for inactive status', 'seed-user-001', 'global', null, ['new_sighting'], {}, false],
+    ['signal-all', 'All Sightings', 'All sightings across all areas', 'seed-user-admin', 'global', null, ['new_sighting'], {}, true, 'official',
+      { viewCount: 12456, uniqueViewers: 5234, activeViewers: 234, lastViewedAt: '2026-01-24T11:10:00.000Z', subscriberCount: 4200, sightingCount: 20 }],
+    ['seed-signal-001', 'School Zone Safety Alerts', 'Critical safety alerts near Edison High School', 'seed-user-001', 'geofence', 'seed-geofence-008', ['new_sighting'], { categoryIds: ['cat-public-safety', 'cat-hazards'], importance: ['high'] }, true, 'community',
+      { viewCount: 342, uniqueViewers: 156, activeViewers: 12, lastViewedAt: '2026-01-24T10:45:00.000Z', subscriberCount: 89, sightingCount: 23 }],
+    ['seed-signal-002', 'Downtown Traffic Monitoring', 'Traffic and road hazard alerts for downtown commuters', 'seed-user-002', 'geofence', 'seed-geofence-011', ['new_sighting', 'score_threshold'], { categoryIds: ['cat-transportation', 'cat-infrastructure'], minScore: 3 }, true, 'community',
+      { viewCount: 1247, uniqueViewers: 523, activeViewers: 45, lastViewedAt: '2026-01-24T11:00:00.000Z', subscriberCount: 312, sightingCount: 67 }],
+    ['seed-signal-003', 'Wildlife in Gathering Place', 'Wildlife sightings in Gathering Place Park', 'seed-user-003', 'geofence', 'seed-geofence-004', ['new_sighting', 'sighting_confirmed'], { categoryIds: ['cat-wildlife'] }, true, 'personal',
+      { viewCount: 87, uniqueViewers: 34, activeViewers: 3, lastViewedAt: '2026-01-24T09:30:00.000Z', subscriberCount: 28, sightingCount: 12 }],
+    ['seed-signal-004', 'Arts District Events', 'Community events and activities in the Arts District', 'seed-user-001', 'geofence', 'seed-geofence-006', ['new_sighting'], { categoryIds: ['cat-community-events', 'cat-market-activity'] }, true, 'community',
+      { viewCount: 678, uniqueViewers: 289, activeViewers: 23, lastViewedAt: '2026-01-24T10:15:00.000Z', subscriberCount: 201, sightingCount: 45 }],
+    ['seed-signal-005', 'Emergency Alerts - Citywide', 'High-priority emergency alerts across all of Tulsa', 'seed-user-admin', 'global', null, ['new_sighting'], { categoryIds: ['cat-public-safety'], importance: ['high'] }, true, 'official',
+      { viewCount: 5623, uniqueViewers: 2341, activeViewers: 178, lastViewedAt: '2026-01-24T11:05:00.000Z', subscriberCount: 1834, sightingCount: 156 }],
+    ['seed-signal-006', 'River Parks Trail Updates', 'Trail conditions and wildlife along River Parks', 'seed-user-002', 'geofence', 'seed-geofence-009', ['new_sighting'], { categoryIds: ['cat-wildlife', 'cat-hazards'] }, true, 'community',
+      { viewCount: 456, uniqueViewers: 178, activeViewers: 15, lastViewedAt: '2026-01-24T10:00:00.000Z', subscriberCount: 134, sightingCount: 31 }],
+    ['seed-signal-007', 'Cherry Street Food Scene', 'Food trucks and restaurant deals in Cherry Street', 'seed-user-003', 'geofence', 'seed-geofence-003', ['new_sighting', 'sighting_confirmed'], { categoryIds: ['cat-food-drink'] }, true, 'personal',
+      { viewCount: 123, uniqueViewers: 67, activeViewers: 5, lastViewedAt: '2026-01-24T08:45:00.000Z', subscriberCount: 42, sightingCount: 18 }],
+    ['seed-signal-008', 'Inactive Test Signal', 'Test signal for inactive status', 'seed-user-001', 'global', null, ['new_sighting'], {}, false, 'personal',
+      { viewCount: 0, uniqueViewers: 0, activeViewers: 0, lastViewedAt: null, subscriberCount: 0, sightingCount: 0 }],
+    ['seed-signal-009', 'Tulsa Weather Alerts', 'Official severe weather and emergency weather notifications', 'seed-user-admin-2', 'global', null, ['new_sighting'], { categoryIds: ['cat-weather'], importance: ['high'] }, true, 'official',
+      { viewCount: 8934, uniqueViewers: 4521, activeViewers: 267, lastViewedAt: '2026-01-24T11:10:00.000Z', subscriberCount: 3245, sightingCount: 234 }],
+    ['seed-signal-010', 'Brookside Neighborhood Watch', 'Community safety and events in Brookside', 'seed-user-008', 'geofence', 'seed-geofence-007', ['new_sighting', 'sighting_confirmed'], { categoryIds: ['cat-public-safety', 'cat-community-events'] }, true, 'personal',
+      { viewCount: 234, uniqueViewers: 89, activeViewers: 7, lastViewedAt: '2026-01-24T09:15:00.000Z', subscriberCount: 56, sightingCount: 19 }],
+    ['seed-signal-011', 'Lost & Found Pets - Tulsa', 'Community signal for lost and found pets citywide', 'seed-user-006', 'global', null, ['new_sighting'], { categoryIds: ['cat-lost-found'] }, true, 'community',
+      { viewCount: 2341, uniqueViewers: 987, activeViewers: 56, lastViewedAt: '2026-01-24T10:50:00.000Z', subscriberCount: 678, sightingCount: 89 }],
+    ['seed-signal-012', 'Turkey Mountain Trail Conditions', 'Trail alerts and wildlife sightings at Turkey Mountain', 'seed-user-007', 'geofence', 'seed-geofence-014', ['new_sighting'], { categoryIds: ['cat-wildlife', 'cat-hazards'] }, true, 'personal',
+      { viewCount: 156, uniqueViewers: 78, activeViewers: 4, lastViewedAt: '2026-01-24T07:30:00.000Z', subscriberCount: 45, sightingCount: 14 }],
+    ['seed-signal-013', 'Official Road Closures & Construction', 'City-maintained alerts for road work and infrastructure projects', 'seed-user-admin', 'global', null, ['new_sighting'], { categoryIds: ['cat-infrastructure', 'cat-transportation'] }, true, 'official',
+      { viewCount: 6782, uniqueViewers: 3421, activeViewers: 189, lastViewedAt: '2026-01-24T11:02:00.000Z', subscriberCount: 2567, sightingCount: 178 }],
+    ['seed-signal-014', 'Blue Dome District Nightlife', 'Events and happenings in the Blue Dome entertainment district', 'seed-user-009', 'geofence', 'seed-geofence-011', ['new_sighting'], { categoryIds: ['cat-community-events', 'cat-food-drink'] }, true, 'personal',
+      { viewCount: 67, uniqueViewers: 34, activeViewers: 2, lastViewedAt: '2026-01-23T22:15:00.000Z', subscriberCount: 23, sightingCount: 8 }],
+    ['seed-signal-015', 'Tulsa Farmers Markets', 'Community signal tracking all farmers markets across Tulsa', 'seed-user-002', 'global', null, ['new_sighting', 'sighting_confirmed'], { categoryIds: ['cat-market-activity'] }, true, 'community',
+      { viewCount: 1567, uniqueViewers: 723, activeViewers: 34, lastViewedAt: '2026-01-24T09:45:00.000Z', subscriberCount: 456, sightingCount: 52 }],
   ];
 
-  for (const [id, name, description, ownerId, targetKind, geofenceId, triggers, conditions, isActive] of signals) {
+  for (const [id, name, description, ownerId, targetKind, geofenceId, triggers, conditions, isActive, classification, analytics] of signals) {
     const target = geofenceId
       ? { kind: targetKind, geofenceId }
       : { kind: targetKind };
 
     await sql`
       INSERT INTO signals (
-        id, name, description, owner_id, target, triggers, conditions, is_active, created_at, updated_at
+        id, name, description, owner_id, target, triggers, conditions, is_active,
+        classification, view_count, unique_viewers, active_viewers, last_viewed_at,
+        subscriber_count, sighting_count, created_at, updated_at
       )
       VALUES (
-        ${id}, ${name}, ${description}, ${ownerId}, ${sql.json(target)}, ${triggers}, ${sql.json(conditions)}, ${isActive}, ${baseTime}, ${baseTime}
+        ${id}, ${name}, ${description}, ${ownerId}, ${sql.json(target)}, ${triggers}, ${sql.json(conditions)}, ${isActive},
+        ${classification}, ${analytics.viewCount}, ${analytics.uniqueViewers}, ${analytics.activeViewers}, ${analytics.lastViewedAt ?? null},
+        ${analytics.subscriberCount}, ${analytics.sightingCount}, ${baseTime}, ${baseTime}
       )
-      ON CONFLICT (id) DO NOTHING
+      ON CONFLICT (id) DO UPDATE SET
+        name = EXCLUDED.name,
+        description = EXCLUDED.description,
+        classification = EXCLUDED.classification,
+        view_count = EXCLUDED.view_count,
+        unique_viewers = EXCLUDED.unique_viewers,
+        active_viewers = EXCLUDED.active_viewers,
+        last_viewed_at = EXCLUDED.last_viewed_at,
+        subscriber_count = EXCLUDED.subscriber_count,
+        sighting_count = EXCLUDED.sighting_count,
+        updated_at = EXCLUDED.updated_at
     `;
   }
 
@@ -428,11 +529,11 @@ async function main() {
     console.log('  - 15 categories');
     console.log('  - 20 subcategories');
     console.log('  - 20 sighting types');
-    console.log('  - 6 users');
-    console.log('  - 8 geofences');
+    console.log('  - 12 users');
+    console.log('  - 13 geofences');
     console.log('  - 20 sightings');
-    console.log('  - 3 subscriptions');
-    console.log('  - 8 signals');
+    console.log('  - 5 subscriptions');
+    console.log('  - 16 signals (including All Sightings)');
   } catch (error) {
     console.error('\n❌ Error during seeding:', error);
     process.exit(1);
