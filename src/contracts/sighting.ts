@@ -13,6 +13,7 @@ export const CustomFieldValueSchema = z.union([
   z.string(),
   z.number(),
   z.boolean(),
+  z.null(),
 ]);
 
 export const CreateSightingRequestSchema = z.object({
@@ -51,6 +52,11 @@ export const SightingSchema = CreateSightingRequestSchema.extend({
   spamReports: z.number().default(0),
   score: z.number().default(0),
   hotScore: z.number().default(0),
+  timeAdjustedScore: z.number().optional(),
+  relevanceScore: z.number().optional(),
+  lastScoreUpdate: z.string().datetime().optional(),
+  flairCount: z.number().optional(),
+  visibilityState: z.string().optional(),
 });
 
 export type CreateSightingRequest = z.infer<typeof CreateSightingRequestSchema>;
