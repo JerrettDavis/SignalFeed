@@ -1,20 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import type { Signal } from "@/domain/signals/signal";
 import { useSignalNavigation } from "@/stores/signalNavigationStore";
 import { dispatchEvent, EVENTS } from "@/shared/events";
-
-interface Signal {
-  id: string;
-  name: string;
-  description: string | null;
-  sightingCount?: number;
-  subscriptionCount?: number;
-  target?: {
-    kind: string;
-    geofenceId?: string;
-  };
-}
 
 export default function SignalListSidebar() {
   const [signals, setSignals] = useState<Signal[]>([]);
@@ -58,7 +47,7 @@ export default function SignalListSidebar() {
     navigateToSignal(signal.id);
 
     // If signal has a geofence, fetch and display it on the map
-    if (signal.target?.kind === "geofence" && signal.target.geofenceId) {
+    if (signal.target.kind === "geofence") {
       try {
         const response = await fetch(
           `/api/geofences/${signal.target.geofenceId}`
@@ -85,7 +74,7 @@ export default function SignalListSidebar() {
       }
     } else {
       console.log(
-        `[SignalListSidebar] Signal "${signal.name}" has ${signal.target?.kind || "unknown"} target - skipping geofence display`
+        `[SignalListSidebar] Signal "${signal.name}" has ${signal.target.kind} target - skipping geofence display`
       );
     }
   }
@@ -115,8 +104,8 @@ export default function SignalListSidebar() {
 
       <div className="flex-1 overflow-y-auto">
         {signals.map((signal) => {
-          const isGlobal = signal.target?.kind === "global";
-          const isGeofenced = signal.target?.kind === "geofence";
+          const isGlobal = signal.target.kind === "global";
+          const isGeofenced = signal.target.kind === "geofence";
 
           return (
             <button
@@ -217,8 +206,10 @@ export default function SignalListSidebar() {
                     </div>
                   )}
                   <div className="flex gap-4 mt-2 text-xs text-[color:var(--text-tertiary)]">
-                    <span>{signal.sightingCount || 0} sightings</span>
-                    <span>{signal.subscriptionCount || 0} subscribers</span>
+                    <span>{signal.analytics.sightingCount || 0} sightings</span>
+                    <span>
+                      {signal.analytics.subscriberCount || 0} subscribers
+                    </span>
                   </div>
                 </div>
               </div>

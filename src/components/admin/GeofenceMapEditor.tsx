@@ -1,8 +1,8 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import maplibregl from "maplibre-gl";
-import "maplibre-gl/dist/maplibre-gl.css";
+import { loadMaplibre } from "@/shared/maplibre";
+import type maplibregl from "maplibre-gl";
 
 interface Point {
   lat: number;
@@ -29,7 +29,7 @@ export function GeofenceMapEditor({
   const [isCtrlPressed, setIsCtrlPressed] = useState(false);
 
   // Helper functions defined before useEffects
-  const updateMapLayers = (map: maplibregl.Map, mapPoints: Point[]) => {
+  const updateMapLayers = async (map: maplibregl.Map, mapPoints: Point[]) => {
     if (mapPoints.length === 0) return;
 
     // Create polygon GeoJSON
@@ -123,7 +123,8 @@ export function GeofenceMapEditor({
 
     // Fit bounds to show all points
     if (mapPoints.length > 0) {
-      const bounds = new maplibregl.LngLatBounds();
+      const maplibre = await loadMaplibre();
+      const bounds = new maplibre.LngLatBounds();
       mapPoints.forEach((p) => bounds.extend([p.lng, p.lat]));
       map.fitBounds(bounds, { padding: 50, maxZoom: 15 });
     }
@@ -183,43 +184,52 @@ export function GeofenceMapEditor({
   useEffect(() => {
     if (!mapContainerRef.current || mapRef.current) return;
 
-    const map = new maplibregl.Map({
-      container: mapContainerRef.current,
-      style: {
-        version: 8,
-        sources: {
-          osm: {
-            type: "raster",
-            tiles: ["https://tile.openstreetmap.org/{z}/{x}/{y}.png"],
-            tileSize: 256,
-            attribution: "&copy; OpenStreetMap Contributors",
+    let cancelled = false;
+
+    void loadMaplibre().then((maplibre) => {
+      if (cancelled || !mapContainerRef.current) return;
+
+      const map = new maplibre.Map({
+        container: mapContainerRef.current,
+        style: {
+          version: 8,
+          sources: {
+            osm: {
+              type: "raster",
+              tiles: ["https://tile.openstreetmap.org/{z}/{x}/{y}.png"],
+              tileSize: 256,
+              attribution: "&copy; OpenStreetMap Contributors",
+            },
           },
+          layers: [
+            {
+              id: "osm",
+              type: "raster",
+              source: "osm",
+            },
+          ],
         },
-        layers: [
-          {
-            id: "osm",
-            type: "raster",
-            source: "osm",
-          },
-        ],
-      },
-      center:
-        localPoints.length > 0
-          ? [localPoints[0].lng, localPoints[0].lat]
-          : [-122.4194, 37.7749],
-      zoom: 13,
-    });
+        center:
+          localPoints.length > 0
+            ? [localPoints[0].lng, localPoints[0].lat]
+            : [-122.4194, 37.7749],
+        zoom: 13,
+      });
 
-    mapRef.current = map;
+      mapRef.current = map;
 
-    map.on("load", () => {
-      updateMapLayers(map, localPoints);
+      map.on("load", () => {
+        void updateMapLayers(map, localPoints);
+      });
     });
 
     // Cleanup
     return () => {
-      map.remove();
-      mapRef.current = null;
+      cancelled = true;
+      if (mapRef.current) {
+        mapRef.current.remove();
+        mapRef.current = null;
+      }
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -228,7 +238,7 @@ export function GeofenceMapEditor({
   useEffect(() => {
     const map = mapRef.current;
     if (!map || !map.isStyleLoaded()) return;
-    updateMapLayers(map, localPoints);
+    void updateMapLayers(map, localPoints);
   }, [localPoints]);
 
   // Handle map clicks based on edit mode

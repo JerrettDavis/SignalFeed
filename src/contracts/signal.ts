@@ -72,6 +72,24 @@ export const UpdateSignalRequestSchema = z.object({
   isActive: z.boolean().optional(),
 });
 
+// Signal classification schema
+export const SignalClassificationSchema = z.enum([
+  "official",
+  "community",
+  "personal",
+  "verified",
+]);
+
+// Signal analytics schema
+export const SignalAnalyticsSchema = z.object({
+  viewCount: z.number(),
+  uniqueViewers: z.number(),
+  activeViewers: z.number(),
+  lastViewedAt: z.string().optional(),
+  subscriberCount: z.number(),
+  sightingCount: z.number(),
+});
+
 // Signal response schema
 export const SignalResponseSchema = z.object({
   id: z.string(),
@@ -82,6 +100,8 @@ export const SignalResponseSchema = z.object({
   triggers: z.array(TriggerTypeSchema),
   conditions: SignalConditionsSchema,
   isActive: z.boolean(),
+  classification: SignalClassificationSchema,
+  analytics: SignalAnalyticsSchema,
   createdAt: z.string().datetime(),
   updatedAt: z.string().datetime(),
 });

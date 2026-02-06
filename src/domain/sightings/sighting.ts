@@ -7,9 +7,14 @@ export type CategoryId = string & { readonly __brand: "CategoryId" };
 
 export type SightingImportance = "low" | "normal" | "high" | "critical";
 export type SightingStatus = "active" | "resolved";
-export type SightingVisibilityState = "visible" | "boosted" | "suppressed" | "hidden" | "archived";
+export type SightingVisibilityState =
+  | "visible"
+  | "boosted"
+  | "suppressed"
+  | "hidden"
+  | "archived";
 
-export type CustomFieldValue = string | number | boolean;
+export type CustomFieldValue = string | number | boolean | null;
 export type CustomFieldValues = Record<string, CustomFieldValue>;
 
 export type NewSighting = {
