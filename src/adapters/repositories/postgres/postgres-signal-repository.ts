@@ -35,6 +35,17 @@ const mapRow = (row: Record<string, unknown>): Signal => {
     triggers: (row.triggers as TriggerType[]) ?? [],
     conditions: (row.conditions as SignalConditions) ?? {},
     isActive: Boolean(row.is_active),
+    classification: (row.classification as Signal["classification"]) ?? "personal",
+    analytics: {
+      viewCount: row.view_count != null ? Number(row.view_count) : 0,
+      uniqueViewers: row.unique_viewers != null ? Number(row.unique_viewers) : 0,
+      activeViewers: row.active_viewers != null ? Number(row.active_viewers) : 0,
+      lastViewedAt: row.last_viewed_at
+        ? new Date(row.last_viewed_at as string).toISOString()
+        : undefined,
+      subscriberCount: row.subscriber_count != null ? Number(row.subscriber_count) : 0,
+      sightingCount: row.sighting_count != null ? Number(row.sighting_count) : 0,
+    },
     createdAt: new Date(row.created_at as string).toISOString(),
     updatedAt: new Date(row.updated_at as string).toISOString(),
   };
@@ -55,6 +66,12 @@ export const postgresSignalRepository = (): SignalRepository => {
           triggers,
           conditions,
           is_active,
+          classification,
+          view_count,
+          unique_viewers,
+          active_viewers,
+          last_viewed_at,
+          sighting_count,
           created_at,
           updated_at
         )
@@ -67,6 +84,12 @@ export const postgresSignalRepository = (): SignalRepository => {
           ${signal.triggers},
           ${sql.json(signal.conditions)},
           ${signal.isActive},
+          ${signal.classification ?? "personal"},
+          ${signal.analytics.viewCount ?? 0},
+          ${signal.analytics.uniqueViewers ?? 0},
+          ${signal.analytics.activeViewers ?? 0},
+          ${signal.analytics.lastViewedAt ?? null},
+          ${signal.analytics.sightingCount ?? 0},
           ${signal.createdAt},
           ${signal.updatedAt}
         )
@@ -187,6 +210,12 @@ export const postgresSignalRepository = (): SignalRepository => {
           triggers = ${signal.triggers},
           conditions = ${sql.json(signal.conditions)},
           is_active = ${signal.isActive},
+          classification = ${signal.classification ?? "personal"},
+          view_count = ${signal.analytics.viewCount ?? 0},
+          unique_viewers = ${signal.analytics.uniqueViewers ?? 0},
+          active_viewers = ${signal.analytics.activeViewers ?? 0},
+          last_viewed_at = ${signal.analytics.lastViewedAt ?? null},
+          sighting_count = ${signal.analytics.sightingCount ?? 0},
           updated_at = ${signal.updatedAt}
         where id = ${signal.id}
       `;
@@ -199,6 +228,54 @@ export const postgresSignalRepository = (): SignalRepository => {
     async deleteMany(ids) {
       if (ids.length === 0) return;
       await sql`delete from signals where id = any(${ids})`;
+    },
+
+    async incrementViewCount(id) {
+      await sql`
+        update signals set
+          view_count = view_count + 1,
+          last_viewed_at = NOW()
+        where id = ${id}
+      `;
+    },
+
+    async updateAnalytics(id, analytics) {
+      const updates: string[] = [];
+      const values: (string | number | null)[] = [];
+      let paramIndex = 1;
+
+      if (analytics.viewCount !== undefined) {
+        updates.push(`view_count = $${paramIndex++}`);
+        values.push(analytics.viewCount);
+      }
+      if (analytics.uniqueViewers !== undefined) {
+        updates.push(`unique_viewers = $${paramIndex++}`);
+        values.push(analytics.uniqueViewers);
+      }
+      if (analytics.activeViewers !== undefined) {
+        updates.push(`active_viewers = $${paramIndex++}`);
+        values.push(analytics.activeViewers);
+      }
+      if (analytics.lastViewedAt !== undefined) {
+        updates.push(`last_viewed_at = $${paramIndex++}`);
+        values.push(analytics.lastViewedAt ?? null);
+      }
+      if (analytics.subscriberCount !== undefined) {
+        updates.push(`subscriber_count = $${paramIndex++}`);
+        values.push(analytics.subscriberCount);
+      }
+      if (analytics.sightingCount !== undefined) {
+        updates.push(`sighting_count = $${paramIndex++}`);
+        values.push(analytics.sightingCount);
+      }
+
+      if (updates.length === 0) return;
+
+      const query = `
+        update signals set ${updates.join(", ")}
+        where id = $${paramIndex}
+      `;
+      await sql.unsafe(query, [...values, id] as never[]);
     },
   };
 };

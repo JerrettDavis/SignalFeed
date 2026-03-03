@@ -3,6 +3,9 @@
 import { useEffect, useState } from "react";
 import { AdminLayout } from "@/components/admin/AdminLayout";
 import { GeofenceMapEditor } from "@/components/admin/GeofenceMapEditor";
+import { ViewToggle } from "@/components/admin/core/ViewToggle";
+import { useViewMode } from "@/components/admin/utils/useViewMode";
+import { GeofenceAdminCard } from "@/components/admin/geofences/GeofenceAdminCard";
 
 interface Geofence {
   id: string;
@@ -26,6 +29,7 @@ export default function AdminGeofences() {
   });
   const [visualEditingGeofence, setVisualEditingGeofence] =
     useState<Geofence | null>(null);
+  const [viewMode, setViewMode] = useViewMode("admin-geofences-view");
 
   const fetchGeofences = async () => {
     try {
@@ -208,7 +212,7 @@ export default function AdminGeofences() {
           )}
         </div>
 
-        {/* Search */}
+        {/* Search and View Toggle */}
         <div className="flex items-center gap-4">
           <div className="flex-1">
             <input
@@ -219,6 +223,7 @@ export default function AdminGeofences() {
               className="w-full rounded-lg border border-[color:var(--border)] bg-[color:var(--background)] px-4 py-2 text-sm text-[color:var(--text-primary)] placeholder:text-[color:var(--text-tertiary)] focus:outline-none focus:ring-2 focus:ring-[color:var(--accent-primary)]"
             />
           </div>
+          <ViewToggle value={viewMode} onChange={setViewMode} />
         </div>
 
         {/* Loading State */}
@@ -240,8 +245,33 @@ export default function AdminGeofences() {
           </div>
         )}
 
-        {/* Table */}
-        {!loading && !error && (
+        {/* Grid View */}
+        {!loading && !error && viewMode === "grid" && (
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {filteredGeofences.length === 0 ? (
+              <div className="col-span-full text-center py-12">
+                <p className="text-sm text-[color:var(--text-secondary)]">
+                  No geofences found
+                </p>
+              </div>
+            ) : (
+              filteredGeofences.map((geofence) => (
+                <GeofenceAdminCard
+                  key={geofence.id}
+                  geofence={geofence}
+                  selected={selectedIds.has(geofence.id)}
+                  onSelect={handleSelectOne}
+                  onEdit={handleEdit}
+                  onDelete={handleDelete}
+                  onVisualEdit={handleVisualEdit}
+                />
+              ))
+            )}
+          </div>
+        )}
+
+        {/* Table View */}
+        {!loading && !error && viewMode === "table" && (
           <div className="overflow-hidden rounded-lg border border-[color:var(--border)] bg-[color:var(--surface)]">
             <div className="overflow-x-auto">
               <table className="w-full">

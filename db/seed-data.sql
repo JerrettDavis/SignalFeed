@@ -6,33 +6,48 @@
 -- ============================================================================
 -- USERS
 -- ============================================================================
-INSERT INTO users (id, email, username, role, status, created_at, updated_at)
+-- Mix of membership tiers: mostly free, some paid, couple admins
+INSERT INTO users (id, email, username, role, status, membership_tier, created_at, updated_at)
 VALUES
-  ('user-001', 'admin@signalfeed.app', 'admin', 'admin', 'active', NOW(), NOW()),
-  ('user-002', 'moderator@signalfeed.app', 'moderator', 'moderator', 'active', NOW(), NOW()),
-  ('user-003', 'reporter1@signalfeed.app', 'reporter1', 'user', 'active', NOW(), NOW()),
-  ('user-004', 'reporter2@signalfeed.app', 'reporter2', 'user', 'active', NOW(), NOW()),
-  ('user-005', 'reporter3@signalfeed.app', 'reporter3', 'user', 'active', NOW(), NOW())
+  -- Admin users (admin tier)
+  ('user-001', 'admin@signalfeed.app', 'admin', 'admin', 'active', 'admin', NOW(), NOW()),
+  ('user-002', 'city-admin@signalfeed.app', 'city_admin', 'admin', 'active', 'admin', NOW(), NOW()),
+
+  -- Moderator (paid tier)
+  ('user-003', 'moderator@signalfeed.app', 'moderator', 'moderator', 'active', 'paid', NOW(), NOW()),
+
+  -- Paid tier users
+  ('user-004', 'reporter1@signalfeed.app', 'reporter1', 'user', 'active', 'paid', NOW(), NOW()),
+  ('user-005', 'reporter2@signalfeed.app', 'reporter2', 'user', 'active', 'paid', NOW(), NOW()),
+
+  -- Free tier users (majority)
+  ('user-006', 'reporter3@signalfeed.app', 'reporter3', 'user', 'active', 'free', NOW(), NOW()),
+  ('user-007', 'observer1@signalfeed.app', 'observer1', 'user', 'active', 'free', NOW(), NOW()),
+  ('user-008', 'observer2@signalfeed.app', 'observer2', 'user', 'active', 'free', NOW(), NOW()),
+  ('user-009', 'observer3@signalfeed.app', 'observer3', 'user', 'active', 'free', NOW(), NOW()),
+  ('user-010', 'observer4@signalfeed.app', 'observer4', 'user', 'active', 'free', NOW(), NOW())
 ON CONFLICT (id) DO NOTHING;
 
 -- ============================================================================
 -- GEOFENCES
 -- ============================================================================
+-- NOTE: All geofence names now include location context (City, State) for better
+-- differentiation between similarly named geofences across different locations
 INSERT INTO geofences (id, name, visibility, owner_id, polygon, created_at)
 VALUES
-  ('geofence-001', 'Downtown District', 'public', 'user-001', 
-   '{"type":"Polygon","coordinates":[[[-122.4195,37.7749],[-122.4095,37.7749],[-122.4095,37.7849],[-122.4195,37.7849],[-122.4195,37.7749]]]}', 
+  ('geofence-001', 'Downtown District, San Francisco, CA', 'public', 'user-001',
+   '{"type":"Polygon","coordinates":[[[-122.4195,37.7749],[-122.4095,37.7749],[-122.4095,37.7849],[-122.4195,37.7849],[-122.4195,37.7749]]]}',
    NOW()),
-  ('geofence-002', 'Harbor Area', 'public', 'user-001',
+  ('geofence-002', 'Harbor Area, San Francisco, CA', 'public', 'user-001',
    '{"type":"Polygon","coordinates":[[[-122.3995,37.7749],[-122.3895,37.7749],[-122.3895,37.7849],[-122.3995,37.7849],[-122.3995,37.7749]]]}',
    NOW()),
-  ('geofence-003', 'University Campus', 'public', 'user-001',
+  ('geofence-003', 'University Campus, San Francisco, CA', 'public', 'user-001',
    '{"type":"Polygon","coordinates":[[[-122.4295,37.7649],[-122.4195,37.7649],[-122.4195,37.7749],[-122.4295,37.7749],[-122.4295,37.7649]]]}',
    NOW()),
-  ('geofence-004', 'Airport Vicinity', 'public', 'user-001',
+  ('geofence-004', 'Airport Vicinity, San Francisco, CA', 'public', 'user-001',
    '{"type":"Polygon","coordinates":[[[-122.3795,37.6189],[-122.3695,37.6189],[-122.3695,37.6289],[-122.3795,37.6289],[-122.3795,37.6189]]]}',
    NOW()),
-  ('geofence-005', 'Industrial Zone', 'public', 'user-002',
+  ('geofence-005', 'Industrial Zone, San Francisco, CA', 'public', 'user-002',
    '{"type":"Polygon","coordinates":[[[-122.4495,37.7549],[-122.4395,37.7549],[-122.4395,37.7649],[-122.4495,37.7649],[-122.4495,37.7549]]]}',
    NOW())
 ON CONFLICT (id) DO NOTHING;
@@ -117,15 +132,15 @@ ON CONFLICT (id) DO NOTHING;
 -- SIGNALS
 -- ============================================================================
 
--- "All Sightings" - Global signal that matches everything
+-- "All Sightings" - Global signal that matches everything (official signal by admin)
 -- Created with future timestamp to ensure it's first in database ordering (created_at DESC)
-INSERT INTO signals (id, name, description, target, conditions, triggers, owner_id, is_active, created_at, updated_at)
+INSERT INTO signals (id, name, description, target, conditions, triggers, owner_id, is_active, classification, view_count, unique_viewers, active_viewers, last_viewed_at, sighting_count, created_at, updated_at)
 VALUES
   ('signal-all', 'All Sightings', 'All sightings across all areas',
    '{"kind":"global"}',
    '{}',
    ARRAY['new_sighting'],
-   'user-001', true, NOW() + INTERVAL '10 years', NOW())
+   'user-001', true, 'official', 12456, 5234, 234, NOW() - INTERVAL '2 minutes', 10, NOW() + INTERVAL '10 years', NOW())
 ON CONFLICT (id) DO UPDATE SET
   name = EXCLUDED.name,
   description = EXCLUDED.description,
@@ -133,103 +148,173 @@ ON CONFLICT (id) DO UPDATE SET
   conditions = EXCLUDED.conditions,
   triggers = EXCLUDED.triggers,
   is_active = EXCLUDED.is_active,
+  classification = EXCLUDED.classification,
+  view_count = EXCLUDED.view_count,
+  unique_viewers = EXCLUDED.unique_viewers,
+  active_viewers = EXCLUDED.active_viewers,
+  last_viewed_at = EXCLUDED.last_viewed_at,
+  sighting_count = EXCLUDED.sighting_count,
   updated_at = EXCLUDED.updated_at;
 
--- Downtown Emergency Signal  
-INSERT INTO signals (id, name, description, target, conditions, triggers, owner_id, is_active, created_at, updated_at)
+-- Downtown Emergency Signal (official signal by admin)
+INSERT INTO signals (id, name, description, target, conditions, triggers, owner_id, is_active, classification, view_count, unique_viewers, active_viewers, last_viewed_at, sighting_count, created_at, updated_at)
 VALUES
   ('signal-001', 'Downtown Emergencies', 'Critical events in downtown district',
    '{"kind":"geofence","geofenceId":"geofence-001"}',
    '{"categoryIds":["cat-emergency"],"importance":"high"}',
    ARRAY['new_sighting'],
-   'user-001', true, NOW(), NOW())
+   'user-001', true, 'official', 5623, 2341, 89, NOW() - INTERVAL '5 minutes', 2, NOW(), NOW())
 ON CONFLICT (id) DO UPDATE SET
   name = EXCLUDED.name,
   description = EXCLUDED.description,
   target = EXCLUDED.target,
   conditions = EXCLUDED.conditions,
   triggers = EXCLUDED.triggers,
-  is_active = EXCLUDED.is_active;
+  is_active = EXCLUDED.is_active,
+  classification = EXCLUDED.classification,
+  view_count = EXCLUDED.view_count,
+  unique_viewers = EXCLUDED.unique_viewers,
+  active_viewers = EXCLUDED.active_viewers,
+  last_viewed_at = EXCLUDED.last_viewed_at,
+  sighting_count = EXCLUDED.sighting_count;
 
--- Harbor Area Activities
-INSERT INTO signals (id, name, description, target, conditions, triggers, owner_id, is_active, created_at, updated_at)
+-- Harbor Area Activities (community signal by paid user)
+INSERT INTO signals (id, name, description, target, conditions, triggers, owner_id, is_active, classification, view_count, unique_viewers, active_viewers, last_viewed_at, sighting_count, created_at, updated_at)
 VALUES
   ('signal-002', 'Harbor Area Activities', 'Events and sightings at waterfront',
    '{"kind":"geofence","geofenceId":"geofence-002"}',
    '{}',
    ARRAY['new_sighting'],
-   'user-001', true, NOW(), NOW())
+   'user-004', true, 'community', 1247, 523, 23, NOW() - INTERVAL '8 minutes', 3, NOW(), NOW())
 ON CONFLICT (id) DO UPDATE SET
   name = EXCLUDED.name,
   description = EXCLUDED.description,
   target = EXCLUDED.target,
   conditions = EXCLUDED.conditions,
   triggers = EXCLUDED.triggers,
-  is_active = EXCLUDED.is_active;
+  is_active = EXCLUDED.is_active,
+  classification = EXCLUDED.classification,
+  view_count = EXCLUDED.view_count,
+  unique_viewers = EXCLUDED.unique_viewers,
+  active_viewers = EXCLUDED.active_viewers,
+  last_viewed_at = EXCLUDED.last_viewed_at,
+  sighting_count = EXCLUDED.sighting_count;
 
--- Campus Events Signal
-INSERT INTO signals (id, name, description, target, conditions, triggers, owner_id, is_active, created_at, updated_at)
+-- Campus Events Signal (personal signal by free user)
+INSERT INTO signals (id, name, description, target, conditions, triggers, owner_id, is_active, classification, view_count, unique_viewers, active_viewers, last_viewed_at, sighting_count, created_at, updated_at)
 VALUES
   ('signal-003', 'Campus Events', 'University campus activities',
    '{"kind":"geofence","geofenceId":"geofence-003"}',
    '{"categoryIds":["cat-community"]}',
    ARRAY['new_sighting'],
-   'user-001', true, NOW(), NOW())
+   'user-006', true, 'personal', 87, 34, 2, NOW() - INTERVAL '15 minutes', 1, NOW(), NOW())
 ON CONFLICT (id) DO UPDATE SET
   name = EXCLUDED.name,
   description = EXCLUDED.description,
   target = EXCLUDED.target,
   conditions = EXCLUDED.conditions,
   triggers = EXCLUDED.triggers,
-  is_active = EXCLUDED.is_active;
+  is_active = EXCLUDED.is_active,
+  classification = EXCLUDED.classification,
+  view_count = EXCLUDED.view_count,
+  unique_viewers = EXCLUDED.unique_viewers,
+  active_viewers = EXCLUDED.active_viewers,
+  last_viewed_at = EXCLUDED.last_viewed_at,
+  sighting_count = EXCLUDED.sighting_count;
 
--- Traffic Alerts Signal
-INSERT INTO signals (id, name, description, target, conditions, triggers, owner_id, is_active, created_at, updated_at)
+-- Traffic Alerts Signal (official signal by admin)
+INSERT INTO signals (id, name, description, target, conditions, triggers, owner_id, is_active, classification, view_count, unique_viewers, active_viewers, last_viewed_at, sighting_count, created_at, updated_at)
 VALUES
   ('signal-004', 'Traffic Alerts', 'Traffic incidents and road closures',
    '{"kind":"global"}',
    '{"categoryIds":["cat-traffic"],"importance":"high"}',
    ARRAY['new_sighting'],
-   'user-002', true, NOW(), NOW())
+   'user-002', true, 'official', 6782, 3421, 156, NOW() - INTERVAL '3 minutes', 2, NOW(), NOW())
 ON CONFLICT (id) DO UPDATE SET
   name = EXCLUDED.name,
   description = EXCLUDED.description,
   target = EXCLUDED.target,
   conditions = EXCLUDED.conditions,
   triggers = EXCLUDED.triggers,
-  is_active = EXCLUDED.is_active;
+  is_active = EXCLUDED.is_active,
+  classification = EXCLUDED.classification,
+  view_count = EXCLUDED.view_count,
+  unique_viewers = EXCLUDED.unique_viewers,
+  active_viewers = EXCLUDED.active_viewers,
+  last_viewed_at = EXCLUDED.last_viewed_at,
+  sighting_count = EXCLUDED.sighting_count;
 
--- Wildlife Watchers Signal
-INSERT INTO signals (id, name, description, target, conditions, triggers, owner_id, is_active, created_at, updated_at)
+-- Wildlife Watchers Signal (community signal by paid user)
+INSERT INTO signals (id, name, description, target, conditions, triggers, owner_id, is_active, classification, view_count, unique_viewers, active_viewers, last_viewed_at, sighting_count, created_at, updated_at)
 VALUES
   ('signal-005', 'Wildlife Watchers', 'Interesting animal sightings',
    '{"kind":"global"}',
    '{"categoryIds":["cat-wildlife"]}',
    ARRAY['new_sighting'],
-   'user-002', true, NOW(), NOW())
+   'user-005', true, 'community', 2341, 987, 45, NOW() - INTERVAL '7 minutes', 2, NOW(), NOW())
 ON CONFLICT (id) DO UPDATE SET
   name = EXCLUDED.name,
   description = EXCLUDED.description,
   target = EXCLUDED.target,
   conditions = EXCLUDED.conditions,
   triggers = EXCLUDED.triggers,
-  is_active = EXCLUDED.is_active;
+  is_active = EXCLUDED.is_active,
+  classification = EXCLUDED.classification,
+  view_count = EXCLUDED.view_count,
+  unique_viewers = EXCLUDED.unique_viewers,
+  active_viewers = EXCLUDED.active_viewers,
+  last_viewed_at = EXCLUDED.last_viewed_at,
+  sighting_count = EXCLUDED.sighting_count;
 
--- Critical Infrastructure Issues
-INSERT INTO signals (id, name, description, target, conditions, triggers, owner_id, is_active, created_at, updated_at)
+-- Critical Infrastructure Issues (official signal by admin)
+INSERT INTO signals (id, name, description, target, conditions, triggers, owner_id, is_active, classification, view_count, unique_viewers, active_viewers, last_viewed_at, sighting_count, created_at, updated_at)
 VALUES
   ('signal-006', 'Infrastructure Alerts', 'Power, water, and critical infrastructure',
    '{"kind":"global"}',
    '{"categoryIds":["cat-infrastructure"],"importance":"high"}',
    ARRAY['new_sighting'],
-   'user-001', true, NOW(), NOW())
+   'user-001', true, 'official', 3456, 1678, 67, NOW() - INTERVAL '4 minutes', 1, NOW(), NOW())
 ON CONFLICT (id) DO UPDATE SET
   name = EXCLUDED.name,
   description = EXCLUDED.description,
   target = EXCLUDED.target,
   conditions = EXCLUDED.conditions,
   triggers = EXCLUDED.triggers,
-  is_active = EXCLUDED.is_active;
+  is_active = EXCLUDED.is_active,
+  classification = EXCLUDED.classification,
+  view_count = EXCLUDED.view_count,
+  unique_viewers = EXCLUDED.unique_viewers,
+  active_viewers = EXCLUDED.active_viewers,
+  last_viewed_at = EXCLUDED.last_viewed_at,
+  sighting_count = EXCLUDED.sighting_count;
+
+-- Additional personal signals by free-tier users
+INSERT INTO signals (id, name, description, target, conditions, triggers, owner_id, is_active, classification, view_count, unique_viewers, active_viewers, last_viewed_at, sighting_count, created_at, updated_at)
+VALUES
+  ('signal-007', 'My Neighborhood Watch', 'Personal safety alerts for my area',
+   '{"kind":"geofence","geofenceId":"geofence-005"}',
+   '{"categoryIds":["cat-emergency"]}',
+   ARRAY['new_sighting'],
+   'user-007', true, 'personal', 45, 23, 1, NOW() - INTERVAL '25 minutes', 0, NOW(), NOW()),
+
+  ('signal-008', 'Weekend Events', 'Community events happening on weekends',
+   '{"kind":"geofence","geofenceId":"geofence-001"}',
+   '{"categoryIds":["cat-community"]}',
+   ARRAY['new_sighting'],
+   'user-008', true, 'personal', 123, 67, 3, NOW() - INTERVAL '18 minutes', 1, NOW(), NOW())
+ON CONFLICT (id) DO UPDATE SET
+  name = EXCLUDED.name,
+  description = EXCLUDED.description,
+  target = EXCLUDED.target,
+  conditions = EXCLUDED.conditions,
+  triggers = EXCLUDED.triggers,
+  is_active = EXCLUDED.is_active,
+  classification = EXCLUDED.classification,
+  view_count = EXCLUDED.view_count,
+  unique_viewers = EXCLUDED.unique_viewers,
+  active_viewers = EXCLUDED.active_viewers,
+  last_viewed_at = EXCLUDED.last_viewed_at,
+  sighting_count = EXCLUDED.sighting_count;
 
 -- ============================================================================
 -- SIGNAL-SIGHTING ASSOCIATIONS

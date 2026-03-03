@@ -2,6 +2,9 @@
 
 import { useEffect, useState } from "react";
 import { AdminLayout } from "@/components/admin/AdminLayout";
+import { ViewToggle } from "@/components/admin/core/ViewToggle";
+import { useViewMode } from "@/components/admin/utils/useViewMode";
+import { UserAdminCard } from "@/components/admin/users/UserAdminCard";
 
 interface User {
   id: string;
@@ -27,6 +30,7 @@ export default function AdminUsers() {
     role: "user" as User["role"],
     status: "active" as User["status"],
   });
+  const [viewMode, setViewMode] = useViewMode("admin-users-view");
 
   const fetchUsers = async () => {
     try {
@@ -207,44 +211,54 @@ export default function AdminUsers() {
           )}
         </div>
 
-        {/* Filters */}
-        <div className="flex items-center gap-4">
-          <div className="flex-1">
+        {/* Filters and Actions */}
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex flex-1 gap-2">
+            {/* Search */}
             <input
               type="text"
               placeholder="Search by email or username..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && handleSearch()}
-              className="w-full rounded-lg border border-[color:var(--border)] bg-[color:var(--background)] px-4 py-2 text-sm text-[color:var(--text-primary)] placeholder:text-[color:var(--text-tertiary)] focus:outline-none focus:ring-2 focus:ring-[color:var(--accent-primary)]"
+              className="flex-1 rounded-lg border border-[color:var(--border)] bg-[color:var(--surface)] px-4 py-2 text-sm text-[color:var(--text-primary)] placeholder:text-[color:var(--text-tertiary)] focus:border-[color:var(--accent-primary)] focus:outline-none focus:ring-1 focus:ring-[color:var(--accent-primary)]"
             />
+
+            {/* Search Button */}
+            <button
+              onClick={handleSearch}
+              className="rounded-lg bg-[color:var(--accent-primary)] px-4 py-2 text-sm font-medium text-white hover:bg-[color:var(--accent-hover)] transition"
+            >
+              Search
+            </button>
+
+            {/* Role Filter */}
+            <select
+              value={roleFilter}
+              onChange={(e) => setRoleFilter(e.target.value)}
+              className="rounded-lg border border-[color:var(--border)] bg-[color:var(--surface)] px-4 py-2 text-sm text-[color:var(--text-primary)] focus:border-[color:var(--accent-primary)] focus:outline-none focus:ring-1 focus:ring-[color:var(--accent-primary)]"
+            >
+              <option value="all">All Roles</option>
+              <option value="user">User</option>
+              <option value="moderator">Moderator</option>
+              <option value="admin">Admin</option>
+            </select>
+
+            {/* Status Filter */}
+            <select
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
+              className="rounded-lg border border-[color:var(--border)] bg-[color:var(--surface)] px-4 py-2 text-sm text-[color:var(--text-primary)] focus:border-[color:var(--accent-primary)] focus:outline-none focus:ring-1 focus:ring-[color:var(--accent-primary)]"
+            >
+              <option value="all">All Statuses</option>
+              <option value="active">Active</option>
+              <option value="suspended">Suspended</option>
+              <option value="banned">Banned</option>
+            </select>
           </div>
-          <button
-            onClick={handleSearch}
-            className="rounded-lg bg-[color:var(--accent-primary)] px-4 py-2 text-sm font-medium text-white hover:bg-[color:var(--accent-hover)] transition"
-          >
-            Search
-          </button>
-          <select
-            value={roleFilter}
-            onChange={(e) => setRoleFilter(e.target.value)}
-            className="rounded-lg border border-[color:var(--border)] bg-[color:var(--background)] px-4 py-2 text-sm text-[color:var(--text-primary)] focus:outline-none focus:ring-2 focus:ring-[color:var(--accent-primary)]"
-          >
-            <option value="all">All Roles</option>
-            <option value="user">User</option>
-            <option value="moderator">Moderator</option>
-            <option value="admin">Admin</option>
-          </select>
-          <select
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
-            className="rounded-lg border border-[color:var(--border)] bg-[color:var(--background)] px-4 py-2 text-sm text-[color:var(--text-primary)] focus:outline-none focus:ring-2 focus:ring-[color:var(--accent-primary)]"
-          >
-            <option value="all">All Statuses</option>
-            <option value="active">Active</option>
-            <option value="suspended">Suspended</option>
-            <option value="banned">Banned</option>
-          </select>
+
+          {/* View Toggle */}
+          <ViewToggle value={viewMode} onChange={setViewMode} />
         </div>
 
         {/* Loading State */}
@@ -266,47 +280,80 @@ export default function AdminUsers() {
           </div>
         )}
 
-        {/* Table */}
-        {!loading && !error && (
+        {/* Grid View */}
+        {!loading && !error && viewMode === "grid" && (
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {filteredUsers.length === 0 ? (
+              <div className="col-span-full text-center py-12">
+                <p className="text-sm text-[color:var(--text-secondary)]">
+                  No users found
+                </p>
+              </div>
+            ) : (
+              filteredUsers.map((user) => (
+                <UserAdminCard
+                  key={user.id}
+                  user={user}
+                  selected={selectedIds.has(user.id)}
+                  onSelect={handleSelectOne}
+                  onEdit={handleEdit}
+                  onDelete={handleDelete}
+                />
+              ))
+            )}
+          </div>
+        )}
+
+        {/* Table View */}
+        {!loading && !error && viewMode === "table" && (
           <div className="overflow-hidden rounded-lg border border-[color:var(--border)] bg-[color:var(--surface)]">
-            <div className="max-h-[calc(100vh-320px)] overflow-y-auto">
-              <div className="overflow-x-auto">
-                <table className="w-full">
-                  <thead className="border-b border-[color:var(--border)] bg-[color:var(--surface-elevated)]">
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead className="border-b border-[color:var(--border)] bg-[color:var(--surface-elevated)]">
+                  <tr>
+                    <th className="w-12 px-4 py-3 text-left">
+                      <input
+                        type="checkbox"
+                        checked={
+                          selectedIds.size === filteredUsers.length &&
+                          filteredUsers.length > 0
+                        }
+                        onChange={(e) => handleSelectAll(e.target.checked)}
+                        className="h-4 w-4 rounded border-[color:var(--border)]"
+                      />
+                    </th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-[color:var(--text-secondary)] uppercase tracking-wider">
+                      Email
+                    </th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-[color:var(--text-secondary)] uppercase tracking-wider">
+                      Username
+                    </th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-[color:var(--text-secondary)] uppercase tracking-wider">
+                      Role
+                    </th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-[color:var(--text-secondary)] uppercase tracking-wider">
+                      Status
+                    </th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-[color:var(--text-secondary)] uppercase tracking-wider">
+                      Registered
+                    </th>
+                    <th className="px-4 py-3 text-right text-xs font-medium text-[color:var(--text-secondary)] uppercase tracking-wider">
+                      Actions
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-[color:var(--border)]">
+                  {filteredUsers.length === 0 ? (
                     <tr>
-                      <th className="px-4 py-3 text-left">
-                        <input
-                          type="checkbox"
-                          checked={
-                            filteredUsers.length > 0 &&
-                            selectedIds.size === filteredUsers.length
-                          }
-                          onChange={(e) => handleSelectAll(e.target.checked)}
-                          className="h-4 w-4 rounded border-[color:var(--border)] text-[color:var(--accent-primary)] focus:ring-[color:var(--accent-primary)]"
-                        />
-                      </th>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-[color:var(--text-secondary)] uppercase tracking-wider">
-                        Email
-                      </th>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-[color:var(--text-secondary)] uppercase tracking-wider">
-                        Username
-                      </th>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-[color:var(--text-secondary)] uppercase tracking-wider">
-                        Role
-                      </th>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-[color:var(--text-secondary)] uppercase tracking-wider">
-                        Status
-                      </th>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-[color:var(--text-secondary)] uppercase tracking-wider">
-                        Registered
-                      </th>
-                      <th className="px-4 py-3 text-right text-xs font-medium text-[color:var(--text-secondary)] uppercase tracking-wider">
-                        Actions
-                      </th>
+                      <td
+                        colSpan={7}
+                        className="px-4 py-12 text-center text-sm text-[color:var(--text-secondary)]"
+                      >
+                        No users found
+                      </td>
                     </tr>
-                  </thead>
-                  <tbody className="divide-y divide-[color:var(--border)]">
-                    {filteredUsers.map((user) => (
+                  ) : (
+                    filteredUsers.map((user) => (
                       <tr
                         key={user.id}
                         className="hover:bg-[color:var(--surface-elevated)] transition"
@@ -318,7 +365,7 @@ export default function AdminUsers() {
                             onChange={(e) =>
                               handleSelectOne(user.id, e.target.checked)
                             }
-                            className="h-4 w-4 rounded border-[color:var(--border)] text-[color:var(--accent-primary)] focus:ring-[color:var(--accent-primary)]"
+                            className="h-4 w-4 rounded border-[color:var(--border)]"
                           />
                         </td>
                         <td className="px-4 py-3 text-sm text-[color:var(--text-primary)]">
@@ -365,19 +412,11 @@ export default function AdminUsers() {
                           </div>
                         </td>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+                    ))
+                  )}
+                </tbody>
+              </table>
             </div>
-
-            {filteredUsers.length === 0 && (
-              <div className="py-12 text-center">
-                <p className="text-sm text-[color:var(--text-secondary)]">
-                  No users found
-                </p>
-              </div>
-            )}
           </div>
         )}
 

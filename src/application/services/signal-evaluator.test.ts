@@ -44,6 +44,11 @@ const createTestSighting = (overrides?: Partial<Sighting>): Sighting => ({
   spamReports: 0,
   score: 9,
   hotScore: 4.5,
+  timeAdjustedScore: 4.5,
+  relevanceScore: 1.0,
+  lastScoreUpdate: "2026-01-26T10:00:00Z",
+  flairCount: 0,
+  visibilityState: "visible",
   ...overrides,
 });
 
@@ -58,6 +63,14 @@ const createTestSignal = (overrides?: Partial<Signal>): Signal => ({
     categoryIds: ["cat-law-enforcement"],
   },
   isActive: true,
+  classification: "community",
+  analytics: {
+    viewCount: 0,
+    uniqueViewers: 0,
+    activeViewers: 0,
+    subscriberCount: 0,
+    sightingCount: 0,
+  },
   createdAt: "2026-01-26T09:00:00Z",
   updatedAt: "2026-01-26T09:00:00Z",
   ...overrides,

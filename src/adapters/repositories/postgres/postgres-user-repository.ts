@@ -1,4 +1,5 @@
 import type { User, UserId, UserRole, UserStatus } from "@/domain/users/user";
+import type { MembershipTier } from "@/domain/users/membership-tier";
 import type { UserRepository, UserListFilters } from "@/ports/user-repository";
 import type { Sql } from "postgres";
 
@@ -8,6 +9,7 @@ type DbUser = {
   username: string | null;
   role: UserRole;
   status: UserStatus;
+  membership_tier: MembershipTier;
   created_at: Date;
   updated_at: Date;
 };
@@ -18,6 +20,7 @@ const fromDb = (row: DbUser): User => ({
   username: row.username || undefined,
   role: row.role,
   status: row.status,
+  membershipTier: row.membership_tier ?? "free",
   createdAt: row.created_at.toISOString(),
   updatedAt: row.updated_at.toISOString(),
 });
@@ -69,13 +72,14 @@ export const buildPostgresUserRepository = (sql: Sql): UserRepository => {
 
     async create(user: User): Promise<void> {
       await sql`
-        INSERT INTO users (id, email, username, role, status, created_at, updated_at)
+        INSERT INTO users (id, email, username, role, status, membership_tier, created_at, updated_at)
         VALUES (
           ${user.id},
           ${user.email},
           ${user.username || null},
           ${user.role},
           ${user.status},
+          ${user.membershipTier ?? "free"},
           ${user.createdAt},
           ${user.updatedAt}
         )
@@ -89,6 +93,7 @@ export const buildPostgresUserRepository = (sql: Sql): UserRepository => {
           username = ${user.username || null},
           role = ${user.role},
           status = ${user.status},
+          membership_tier = ${user.membershipTier ?? "free"},
           updated_at = ${user.updatedAt}
         WHERE id = ${user.id}
       `;

@@ -1,4 +1,4 @@
-import bcrypt from "bcrypt";
+import bcrypt from "bcryptjs";
 import type { PasswordService } from "@/ports/auth";
 
 const SALT_ROUNDS = 10;

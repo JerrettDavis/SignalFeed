@@ -38,6 +38,7 @@ export function AdminLayout({ children }: AdminLayoutProps) {
     { path: "/admin", label: "Dashboard" },
     { path: "/admin/users", label: "Users" },
     { path: "/admin/sightings", label: "Sightings" },
+    { path: "/admin/signals", label: "Signals" },
     { path: "/admin/geofences", label: "Geofences" },
     { path: "/admin/subscriptions", label: "Subscriptions" },
     { path: "/admin/reputation", label: "Reputation" },

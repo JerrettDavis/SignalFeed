@@ -154,7 +154,7 @@ export const SightingsExplorer = () => {
       {status === "error" && (
         <div className="absolute top-4 left-1/2 -translate-x-1/2 rounded-lg border border-[color:var(--accent-danger)] bg-[color:var(--surface-elevated)] px-4 py-2 shadow-[var(--shadow-md)] z-10">
           <div className="text-sm font-medium text-[color:var(--accent-danger)]">
-            Unable to load signals
+            Unable to load sightings
           </div>
         </div>
       )}

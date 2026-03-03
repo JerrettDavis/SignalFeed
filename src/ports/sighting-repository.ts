@@ -20,6 +20,7 @@ export type SightingFilters = {
 export type SightingRepository = {
   create: (sighting: Sighting) => Promise<void>;
   getById: (id: SightingId) => Promise<Sighting | null>;
+  findByExternalId: (externalId: string) => Promise<Sighting | null>;
   list: (filters: SightingFilters) => Promise<Sighting[]>;
   update: (sighting: Sighting) => Promise<void>;
   delete: (id: SightingId) => Promise<void>;

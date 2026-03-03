@@ -7,8 +7,14 @@ export type CategoryId = string & { readonly __brand: "CategoryId" };
 
 export type SightingImportance = "low" | "normal" | "high" | "critical";
 export type SightingStatus = "active" | "resolved";
+export type SightingVisibilityState =
+  | "visible"
+  | "boosted"
+  | "suppressed"
+  | "hidden"
+  | "archived";
 
-export type CustomFieldValue = string | number | boolean;
+export type CustomFieldValue = string | number | boolean | null;
 export type CustomFieldValues = Record<string, CustomFieldValue>;
 
 export type NewSighting = {
@@ -56,6 +62,13 @@ export type Sighting = {
   spamReports: number;
   score: number;
   hotScore: number;
+  timeAdjustedScore: number;
+  relevanceScore: number;
+  decayRate?: number;
+  lastScoreUpdate: string;
+  flairCount: number;
+  primaryFlairId?: string;
+  visibilityState: SightingVisibilityState;
 };
 
 const MAX_DESCRIPTION_LENGTH = 1000;
@@ -141,6 +154,11 @@ export const createSighting = (
     spamReports: 0,
     score: 0,
     hotScore: 0,
+    timeAdjustedScore: 0,
+    relevanceScore: 1.0,
+    lastScoreUpdate: context.createdAt,
+    flairCount: 0,
+    visibilityState: "visible",
   });
 };
 
@@ -182,5 +200,12 @@ export const updateSighting = (
     spamReports: existing.spamReports,
     score: existing.score,
     hotScore: existing.hotScore,
+    timeAdjustedScore: existing.timeAdjustedScore,
+    relevanceScore: existing.relevanceScore,
+    decayRate: existing.decayRate,
+    lastScoreUpdate: existing.lastScoreUpdate,
+    flairCount: existing.flairCount,
+    primaryFlairId: existing.primaryFlairId,
+    visibilityState: existing.visibilityState,
   });
 };

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import type { Comment } from "@/domain/comments/comment";
 
 interface CommentItemProps {
@@ -106,7 +106,10 @@ function CommentItem({
           <span className="text-xs font-medium text-[color:var(--text-primary)]">
             User {comment.userId.slice(-6)}
           </span>
-          <span className="text-xs text-[color:var(--text-tertiary)]">
+          <span
+            className="text-xs text-[color:var(--text-tertiary)]"
+            suppressHydrationWarning
+          >
             {formatRelativeTime(comment.createdAt)}
           </span>
           {comment.createdAt !== comment.updatedAt && (
@@ -144,7 +147,7 @@ export function CommentThread({ sightingId, userId }: CommentThreadProps) {
   const [newComment, setNewComment] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
-  const loadComments = async () => {
+  const loadComments = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
@@ -159,11 +162,11 @@ export function CommentThread({ sightingId, userId }: CommentThreadProps) {
     } finally {
       setLoading(false);
     }
-  };
+  }, [sightingId]);
 
   useEffect(() => {
     void loadComments();
-  }, [sightingId]);
+  }, [loadComments]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

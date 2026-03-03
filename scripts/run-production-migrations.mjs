@@ -39,7 +39,7 @@ function loadEnv() {
         process.env[key] = value;
       }
     });
-  } catch (error) {
+  } catch {
     console.error('⚠️  Could not load .env.production.local');
   }
 }

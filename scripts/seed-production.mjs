@@ -36,7 +36,7 @@ function loadEnv() {
         process.env[key] = value;
       }
     });
-  } catch (error) {
+  } catch {
     console.error('⚠️  Could not load .env.production.local');
   }
 }
@@ -77,7 +77,7 @@ async function main() {
   try {
     await seedDatabase();
     console.log('\n✨ Production database seeded!');
-  } catch (error) {
+  } catch {
     console.error('\n❌ Seeding failed');
     process.exit(1);
   } finally {

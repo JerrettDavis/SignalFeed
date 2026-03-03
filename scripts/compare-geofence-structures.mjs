@@ -32,7 +32,7 @@ function loadEnv() {
       });
       console.log(`✅ Loaded environment from ${envFile}`);
       return;
-    } catch (error) {
+    } catch {
       continue;
     }
   }

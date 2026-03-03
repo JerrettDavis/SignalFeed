@@ -767,7 +767,10 @@ export default function Home() {
                                 <p className="text-xs text-[color:var(--text-secondary)] mt-1">
                                   {sighting.category} • {sighting.type}
                                 </p>
-                                <p className="text-xs text-[color:var(--text-tertiary)] mt-1">
+                                <p
+                                  className="text-xs text-[color:var(--text-tertiary)] mt-1"
+                                  suppressHydrationWarning
+                                >
                                   {sighting.observedAtLabel}
                                 </p>
                               </div>

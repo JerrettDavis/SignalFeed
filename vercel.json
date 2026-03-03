@@ -1,5 +1,5 @@
 {
-  "buildCommand": "npm run build",
+  "buildCommand": "npm run build && node scripts/seed-database.mjs || echo 'Seed script failed (non-blocking) - check logs above'",
   "framework": "nextjs",
   "headers": [
     {
@@ -25,5 +25,11 @@
       ]
     }
   ],
-  "regions": ["iad1"]
+  "regions": ["iad1"],
+  "crons": [
+    {
+      "path": "/api/cron/ingest-feeds",
+      "schedule": "0 0 * * *"
+    }
+  ]
 }

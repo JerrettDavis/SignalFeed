@@ -50,7 +50,10 @@ export const SightingCardItem = ({ sighting }: { sighting: SightingCard }) => {
         <span className="rounded-full bg-white/60 px-3 py-1">
           Status: {sighting.status}
         </span>
-        <span className="rounded-full bg-white/60 px-3 py-1">
+        <span
+          className="rounded-full bg-white/60 px-3 py-1"
+          suppressHydrationWarning
+        >
           Observed: {sighting.observedAtLabel}
         </span>
       </div>

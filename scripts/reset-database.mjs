@@ -44,7 +44,7 @@ function loadEnv() {
         process.env[key] = value;
       }
     });
-  } catch (error) {
+  } catch {
     // .env file not found, continue with existing env vars
   }
 }

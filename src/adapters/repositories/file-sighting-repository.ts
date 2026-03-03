@@ -45,6 +45,17 @@ export const fileSightingRepository = (): SightingRepository => {
       // Ensure backward compatibility by providing default values
       return ensureSightingDefaults(sighting);
     },
+    async findByExternalId(externalId: string) {
+      const data = await readCollection<Sighting>(filePath, seedSightings);
+      const sighting = data.find(
+        (item) => item.fields.externalId === externalId
+      );
+      if (!sighting) {
+        return null;
+      }
+      // Ensure backward compatibility by providing default values
+      return ensureSightingDefaults(sighting);
+    },
     async list(filters: SightingFilters) {
       const data = await readCollection<Sighting>(filePath, seedSightings);
       const filtered = data.filter((sighting) => {

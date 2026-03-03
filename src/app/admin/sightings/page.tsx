@@ -2,6 +2,9 @@
 
 import { useEffect, useState } from "react";
 import { AdminLayout } from "@/components/admin/AdminLayout";
+import { ViewToggle } from "@/components/admin/core/ViewToggle";
+import { useViewMode } from "@/components/admin/utils/useViewMode";
+import { SightingAdminCard } from "@/components/admin/sightings/SightingAdminCard";
 
 interface Sighting {
   id: string;
@@ -25,6 +28,7 @@ export default function AdminSightings() {
     status: "",
     importance: "",
   });
+  const [viewMode, setViewMode] = useViewMode("admin-sightings-view");
 
   const fetchSightings = async () => {
     try {
@@ -174,16 +178,22 @@ export default function AdminSightings() {
           )}
         </div>
 
-        {/* Search */}
-        <div className="flex items-center gap-4">
-          <div className="flex-1">
+        {/* Filters and Actions */}
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex flex-1 gap-2">
+            {/* Search */}
             <input
               type="text"
               placeholder="Search by description..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full rounded-lg border border-[color:var(--border)] bg-[color:var(--background)] px-4 py-2 text-sm text-[color:var(--text-primary)] placeholder:text-[color:var(--text-tertiary)] focus:outline-none focus:ring-2 focus:ring-[color:var(--accent-primary)]"
+              className="flex-1 rounded-lg border border-[color:var(--border)] bg-[color:var(--surface)] px-4 py-2 text-sm text-[color:var(--text-primary)] placeholder:text-[color:var(--text-tertiary)] focus:border-[color:var(--accent-primary)] focus:outline-none focus:ring-1 focus:ring-[color:var(--accent-primary)]"
             />
+          </div>
+
+          {/* View Toggle and Bulk Actions */}
+          <div className="flex items-center gap-2">
+            <ViewToggle value={viewMode} onChange={setViewMode} />
           </div>
         </div>
 
@@ -206,8 +216,32 @@ export default function AdminSightings() {
           </div>
         )}
 
-        {/* Table */}
-        {!loading && !error && (
+        {/* Grid View */}
+        {!loading && !error && viewMode === "grid" && (
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {filteredSightings.length === 0 ? (
+              <div className="col-span-full text-center py-12">
+                <p className="text-sm text-[color:var(--text-secondary)]">
+                  No sightings found
+                </p>
+              </div>
+            ) : (
+              filteredSightings.map((sighting) => (
+                <SightingAdminCard
+                  key={sighting.id}
+                  sighting={sighting}
+                  selected={selectedIds.has(sighting.id)}
+                  onSelect={handleSelectOne}
+                  onEdit={handleEdit}
+                  onDelete={handleDelete}
+                />
+              ))
+            )}
+          </div>
+        )}
+
+        {/* Table View */}
+        {!loading && !error && viewMode === "table" && (
           <div className="overflow-hidden rounded-lg border border-[color:var(--border)] bg-[color:var(--surface)]">
             <div className="max-h-[calc(100vh-320px)] overflow-y-auto">
               <div className="overflow-x-auto">
@@ -243,81 +277,84 @@ export default function AdminSightings() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-[color:var(--border)]">
-                    {filteredSightings.map((sighting) => (
-                      <tr
-                        key={sighting.id}
-                        className="hover:bg-[color:var(--surface-elevated)] transition"
-                      >
-                        <td className="px-4 py-3">
-                          <input
-                            type="checkbox"
-                            checked={selectedIds.has(sighting.id)}
-                            onChange={(e) =>
-                              handleSelectOne(sighting.id, e.target.checked)
-                            }
-                            className="h-4 w-4 rounded border-[color:var(--border)] text-[color:var(--accent-primary)] focus:ring-[color:var(--accent-primary)]"
-                          />
-                        </td>
-                        <td className="px-4 py-3 text-sm text-[color:var(--text-primary)]">
-                          {sighting.description}
-                        </td>
-                        <td className="px-4 py-3">
-                          <span
-                            className={`inline-flex rounded-full px-2 py-1 text-xs font-medium ${
-                              sighting.status === "active"
-                                ? "bg-[color:var(--accent-success)]/10 text-[color:var(--accent-success)]"
-                                : "bg-[color:var(--text-tertiary)]/10 text-[color:var(--text-tertiary)]"
-                            }`}
-                          >
-                            {sighting.status}
-                          </span>
-                        </td>
-                        <td className="px-4 py-3">
-                          <span
-                            className={`inline-flex rounded-full px-2 py-1 text-xs font-medium ${
-                              sighting.importance === "critical"
-                                ? "bg-[color:var(--accent-danger)]/10 text-[color:var(--accent-danger)]"
-                                : sighting.importance === "high"
-                                  ? "bg-[color:var(--accent-warning)]/10 text-[color:var(--accent-warning)]"
-                                  : "bg-[color:var(--text-tertiary)]/10 text-[color:var(--text-tertiary)]"
-                            }`}
-                          >
-                            {sighting.importance}
-                          </span>
-                        </td>
-                        <td className="px-4 py-3 text-sm text-[color:var(--text-secondary)]">
-                          {new Date(sighting.observedAt).toLocaleDateString()}
-                        </td>
-                        <td className="px-4 py-3 text-right">
-                          <div className="flex items-center justify-end gap-2">
-                            <button
-                              onClick={() => handleEdit(sighting)}
-                              className="rounded px-3 py-1 text-xs font-medium text-[color:var(--accent-primary)] hover:bg-[color:var(--accent-primary)]/10 transition"
-                            >
-                              Edit
-                            </button>
-                            <button
-                              onClick={() => handleDelete(sighting.id)}
-                              className="rounded px-3 py-1 text-xs font-medium text-[color:var(--accent-danger)] hover:bg-[color:var(--accent-danger)]/10 transition"
-                            >
-                              Delete
-                            </button>
-                          </div>
+                    {filteredSightings.length === 0 ? (
+                      <tr>
+                        <td
+                          colSpan={6}
+                          className="px-4 py-12 text-center text-sm text-[color:var(--text-secondary)]"
+                        >
+                          No sightings found
                         </td>
                       </tr>
-                    ))}
+                    ) : (
+                      filteredSightings.map((sighting) => (
+                        <tr
+                          key={sighting.id}
+                          className="hover:bg-[color:var(--surface-elevated)] transition"
+                        >
+                          <td className="px-4 py-3">
+                            <input
+                              type="checkbox"
+                              checked={selectedIds.has(sighting.id)}
+                              onChange={(e) =>
+                                handleSelectOne(sighting.id, e.target.checked)
+                              }
+                              className="h-4 w-4 rounded border-[color:var(--border)] text-[color:var(--accent-primary)] focus:ring-[color:var(--accent-primary)]"
+                            />
+                          </td>
+                          <td className="px-4 py-3 text-sm text-[color:var(--text-primary)]">
+                            {sighting.description}
+                          </td>
+                          <td className="px-4 py-3">
+                            <span
+                              className={`inline-flex rounded-full px-2 py-1 text-xs font-medium ${
+                                sighting.status === "active"
+                                  ? "bg-[color:var(--accent-success)]/10 text-[color:var(--accent-success)]"
+                                  : "bg-[color:var(--text-tertiary)]/10 text-[color:var(--text-tertiary)]"
+                              }`}
+                            >
+                              {sighting.status}
+                            </span>
+                          </td>
+                          <td className="px-4 py-3">
+                            <span
+                              className={`inline-flex rounded-full px-2 py-1 text-xs font-medium ${
+                                sighting.importance === "critical"
+                                  ? "bg-[color:var(--accent-danger)]/10 text-[color:var(--accent-danger)]"
+                                  : sighting.importance === "high"
+                                    ? "bg-[color:var(--accent-warning)]/10 text-[color:var(--accent-warning)]"
+                                    : "bg-[color:var(--text-tertiary)]/10 text-[color:var(--text-tertiary)]"
+                              }`}
+                            >
+                              {sighting.importance}
+                            </span>
+                          </td>
+                          <td className="px-4 py-3 text-sm text-[color:var(--text-secondary)]">
+                            {new Date(sighting.observedAt).toLocaleDateString()}
+                          </td>
+                          <td className="px-4 py-3 text-right">
+                            <div className="flex items-center justify-end gap-2">
+                              <button
+                                onClick={() => handleEdit(sighting)}
+                                className="rounded px-3 py-1 text-xs font-medium text-[color:var(--accent-primary)] hover:bg-[color:var(--accent-primary)]/10 transition"
+                              >
+                                Edit
+                              </button>
+                              <button
+                                onClick={() => handleDelete(sighting.id)}
+                                className="rounded px-3 py-1 text-xs font-medium text-[color:var(--accent-danger)] hover:bg-[color:var(--accent-danger)]/10 transition"
+                              >
+                                Delete
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))
+                    )}
                   </tbody>
                 </table>
               </div>
             </div>
-
-            {filteredSightings.length === 0 && (
-              <div className="py-12 text-center">
-                <p className="text-sm text-[color:var(--text-secondary)]">
-                  No sightings found
-                </p>
-              </div>
-            )}
           </div>
         )}
 
