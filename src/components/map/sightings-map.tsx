@@ -167,11 +167,18 @@ const worldYToLat = (y: number, zoom: number) => {
 };
 
 const clusterRadiusForZoom = (zoom: number) => {
-  if (zoom < 4) return 180;
-  if (zoom < 7) return 130;
-  if (zoom < 10) return 92;
-  if (zoom < 13) return 62;
-  return 38;
+  if (zoom < 4) return 92;
+  if (zoom < 6) return 72;
+  if (zoom < 8) return 52;
+  if (zoom < 10) return 38;
+  if (zoom < 12) return 28;
+  if (zoom < 14) return 20;
+  return 14;
+};
+
+const minClusterPointsForZoom = (zoom: number) => {
+  if (zoom < 8) return 3;
+  return 2;
 };
 
 const toClusterGeoJson = (geoJson: SightingGeoJson, zoom: number) => {
@@ -180,72 +187,97 @@ const toClusterGeoJson = (geoJson: SightingGeoJson, zoom: number) => {
   }
 
   const radius = clusterRadiusForZoom(zoom);
-  const groups = new Map<
-    string,
-    {
-      count: number;
-      worldXTotal: number;
-      worldYTotal: number;
-      highestImportance: SightingCard["importance"];
-      items: Array<Record<string, unknown>>;
-    }
-  >();
-
-  for (const feature of geoJson.features) {
+  const minClusterPoints = minClusterPointsForZoom(zoom);
+  const radiusSquared = radius * radius;
+  const bins = new Map<string, number[]>();
+  const projected = geoJson.features.map((feature) => {
     const [lng, lat] = feature.geometry.coordinates;
     const worldX = lngToWorldX(lng, zoom);
     const worldY = latToWorldY(lat, zoom);
-    const key = `${Math.floor(worldX / radius)}:${Math.floor(worldY / radius)}`;
-    const importance = feature.properties.importance;
-    const existing = groups.get(key);
-    if (!existing) {
-      groups.set(key, {
-        count: 1,
-        worldXTotal: worldX,
-        worldYTotal: worldY,
-        highestImportance: importance,
-        items: [feature.properties],
-      });
+    const binX = Math.floor(worldX / radius);
+    const binY = Math.floor(worldY / radius);
+    return { feature, worldX, worldY, binX, binY, used: false };
+  });
+
+  projected.forEach((item, index) => {
+    const key = `${item.binX}:${item.binY}`;
+    bins.set(key, [...(bins.get(key) ?? []), index]);
+  });
+
+  const clusterFeatures = [];
+
+  for (let index = 0; index < projected.length; index += 1) {
+    const item = projected[index];
+    if (item.used) {
       continue;
     }
 
-    existing.count += 1;
-    existing.worldXTotal += worldX;
-    existing.worldYTotal += worldY;
-    if (
-      importanceRank[importance] > importanceRank[existing.highestImportance]
-    ) {
-      existing.highestImportance = importance;
+    const nearby: number[] = [];
+    for (let x = item.binX - 1; x <= item.binX + 1; x += 1) {
+      for (let y = item.binY - 1; y <= item.binY + 1; y += 1) {
+        for (const candidateIndex of bins.get(`${x}:${y}`) ?? []) {
+          const candidate = projected[candidateIndex];
+          if (candidate.used) {
+            continue;
+          }
+
+          const dx = candidate.worldX - item.worldX;
+          const dy = candidate.worldY - item.worldY;
+          if (dx * dx + dy * dy <= radiusSquared) {
+            nearby.push(candidateIndex);
+          }
+        }
+      }
     }
-    if (existing.items.length < 12) {
-      existing.items.push(feature.properties);
+
+    if (nearby.length < minClusterPoints) {
+      continue;
     }
+
+    let worldXTotal = 0;
+    let worldYTotal = 0;
+    let highestImportance: SightingCard["importance"] = "low";
+    const items: Array<Record<string, unknown>> = [];
+
+    for (const nearbyIndex of nearby) {
+      const nearbyItem = projected[nearbyIndex];
+      nearbyItem.used = true;
+      worldXTotal += nearbyItem.worldX;
+      worldYTotal += nearbyItem.worldY;
+
+      const importance = nearbyItem.feature.properties.importance;
+      if (importanceRank[importance] > importanceRank[highestImportance]) {
+        highestImportance = importance;
+      }
+      if (items.length < 12) {
+        items.push(nearbyItem.feature.properties);
+      }
+    }
+
+    const count = nearby.length;
+    clusterFeatures.push({
+      type: "Feature" as const,
+      properties: {
+        id: `${index}:${count}:${zoom.toFixed(2)}`,
+        point_count: count,
+        point_count_abbreviated:
+          count >= 1000 ? `${Math.round(count / 100) / 10}k` : String(count),
+        importance: highestImportance,
+        items: JSON.stringify(items),
+      },
+      geometry: {
+        type: "Point" as const,
+        coordinates: [
+          worldXToLng(worldXTotal / count, zoom),
+          worldYToLat(worldYTotal / count, zoom),
+        ],
+      },
+    });
   }
 
   return {
     type: "FeatureCollection" as const,
-    features: Array.from(groups.entries())
-      .filter(([, group]) => group.count > 1)
-      .map(([id, group]) => ({
-        type: "Feature" as const,
-        properties: {
-          id,
-          point_count: group.count,
-          point_count_abbreviated:
-            group.count >= 1000
-              ? `${Math.round(group.count / 100) / 10}k`
-              : String(group.count),
-          importance: group.highestImportance,
-          items: JSON.stringify(group.items),
-        },
-        geometry: {
-          type: "Point" as const,
-          coordinates: [
-            worldXToLng(group.worldXTotal / group.count, zoom),
-            worldYToLat(group.worldYTotal / group.count, zoom),
-          ],
-        },
-      })),
+    features: clusterFeatures,
   };
 };
 
@@ -606,15 +638,15 @@ export const SightingsMap = ({
               ["linear"],
               ["get", "point_count"],
               2,
-              22,
+              16,
               10,
-              32,
+              23,
               30,
-              44,
+              31,
               100,
-              58,
+              42,
               250,
-              70,
+              52,
             ],
             "circle-color": [
               "step",
@@ -627,15 +659,15 @@ export const SightingsMap = ({
               100,
               "#f06449", // color when count >= 100
             ],
-            "circle-opacity": 0.88,
+            "circle-opacity": 0.72,
             "circle-stroke-width": [
               "interpolate",
               ["linear"],
               ["get", "point_count"],
               2,
-              3,
+              2,
               100,
-              5,
+              4,
             ],
             "circle-stroke-color": "#ffffff",
           },
@@ -968,15 +1000,15 @@ export const SightingsMap = ({
               ["linear"],
               ["get", "point_count"],
               2,
-              22,
+              16,
               10,
-              32,
+              23,
               30,
-              44,
+              31,
               100,
-              58,
+              42,
               250,
-              70,
+              52,
             ],
             "circle-color": [
               "step",
@@ -989,15 +1021,15 @@ export const SightingsMap = ({
               100,
               "#f06449",
             ],
-            "circle-opacity": 0.88,
+            "circle-opacity": 0.72,
             "circle-stroke-width": [
               "interpolate",
               ["linear"],
               ["get", "point_count"],
               2,
-              3,
+              2,
               100,
-              5,
+              4,
             ],
             "circle-stroke-color": "#ffffff",
           },
