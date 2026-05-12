@@ -6,6 +6,7 @@ import type {
 } from "@/ports/sighting-repository";
 import { pointInPolygon } from "@/shared/geo";
 import { getSql } from "@/adapters/repositories/postgres/client";
+import { parseCustomFields } from "@/adapters/repositories/postgres/json-fields";
 
 const mapRow = (row: Record<string, unknown>): Sighting => {
   // Handle JSONB location field
@@ -25,7 +26,7 @@ const mapRow = (row: Record<string, unknown>): Sighting => {
     status: row.status as Sighting["status"],
     observedAt: new Date(row.observed_at as string).toISOString(),
     createdAt: new Date(row.created_at as string).toISOString(),
-    fields: (row.fields as Record<string, Sighting["fields"][string]>) ?? {},
+    fields: parseCustomFields(row.fields),
     reporterId: row.reporter_id ? String(row.reporter_id) : undefined,
     // Ensure backward compatibility by providing default values for scoring fields
     upvotes: row.upvotes != null ? Number(row.upvotes) : 0,

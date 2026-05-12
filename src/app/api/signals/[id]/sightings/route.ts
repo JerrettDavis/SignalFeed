@@ -8,6 +8,7 @@ import { NextRequest } from "next/server";
 import { jsonOk, jsonNotFound, jsonServerError } from "@/shared/http";
 import { getSignalRepository } from "@/adapters/repositories/repository-factory";
 import { getSql } from "@/adapters/repositories/postgres/client";
+import { parseCustomFields } from "@/adapters/repositories/postgres/json-fields";
 import type { SignalId } from "@/domain/signals/signal";
 import type { SightingId } from "@/domain/sightings/sighting";
 
@@ -53,7 +54,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
         status: string;
         observed_at: Date;
         created_at: Date;
-        fields: Record<string, unknown>;
+        fields: unknown;
         reporter_id: string | null;
         upvotes: number;
         downvotes: number;
@@ -93,7 +94,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
           : (row.status as "active" | "resolved"),
       observedAt: row.observed_at.toISOString(),
       createdAt: row.created_at.toISOString(),
-      fields: row.fields,
+      fields: parseCustomFields(row.fields),
       reporterId: row.reporter_id || undefined,
       upvotes: row.upvotes,
       downvotes: row.downvotes,
