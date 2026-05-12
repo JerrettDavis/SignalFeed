@@ -42,12 +42,12 @@ const importanceRank = {
 } as const;
 
 const CLUSTER_MAX_ZOOM = 17;
-const CLUSTER_RADIUS_PX = 220;
+const CLUSTER_RADIUS_PX = 180;
 const CLUSTER_PREVIEW_ZOOM = 15;
 const POINT_DETAIL_MIN_ZOOM = 7;
 const STACK_LABEL_MIN_ZOOM = 12;
-const OVERVIEW_CLUSTER_LNG_DEGREES = 8;
-const OVERVIEW_CLUSTER_LAT_DEGREES = 6;
+const OVERVIEW_CLUSTER_LNG_DEGREES = 6;
+const OVERVIEW_CLUSTER_LAT_DEGREES = 4.5;
 
 const coordinateKey = (location: SightingCard["location"]) =>
   `${location.lat.toFixed(4)}:${location.lng.toFixed(4)}`;
