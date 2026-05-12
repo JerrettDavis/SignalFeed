@@ -43,10 +43,9 @@ const importanceRank = {
 
 const POINT_SOURCE_ID = "sighting-points";
 const CLUSTER_SOURCE_ID = "sighting-clusters";
-const CLUSTER_MAX_ZOOM = 16;
-const CLUSTER_RADIUS_PX = 130;
 const CLUSTER_PREVIEW_ZOOM = 15;
 const STACK_LABEL_MIN_ZOOM = 12;
+const MERCATOR_TILE_SIZE = 512;
 
 const coordinateKey = (location: SightingCard["location"]) =>
   `${location.lat.toFixed(4)}:${location.lng.toFixed(4)}`;
@@ -142,6 +141,121 @@ const toGeoJson = (sightings: SightingCard[]) => {
   };
 };
 
+type SightingGeoJson = ReturnType<typeof toGeoJson>;
+
+const worldSize = (zoom: number) => MERCATOR_TILE_SIZE * 2 ** zoom;
+
+const lngToWorldX = (lng: number, zoom: number) =>
+  ((lng + 180) / 360) * worldSize(zoom);
+
+const latToWorldY = (lat: number, zoom: number) => {
+  const sinLat = Math.sin((lat * Math.PI) / 180);
+  return (
+    (0.5 - Math.log((1 + sinLat) / (1 - sinLat)) / (4 * Math.PI)) *
+    worldSize(zoom)
+  );
+};
+
+const worldXToLng = (x: number, zoom: number) =>
+  (x / worldSize(zoom)) * 360 - 180;
+
+const worldYToLat = (y: number, zoom: number) => {
+  const normalizedY = y / worldSize(zoom);
+  return (
+    (Math.atan(Math.sinh(Math.PI * (1 - 2 * normalizedY))) * 180) / Math.PI
+  );
+};
+
+const clusterRadiusForZoom = (zoom: number) => {
+  if (zoom < 4) return 180;
+  if (zoom < 7) return 130;
+  if (zoom < 10) return 92;
+  if (zoom < 13) return 62;
+  return 38;
+};
+
+const toClusterGeoJson = (geoJson: SightingGeoJson, zoom: number) => {
+  if (zoom >= CLUSTER_PREVIEW_ZOOM) {
+    return { type: "FeatureCollection" as const, features: [] };
+  }
+
+  const radius = clusterRadiusForZoom(zoom);
+  const groups = new Map<
+    string,
+    {
+      count: number;
+      worldXTotal: number;
+      worldYTotal: number;
+      highestImportance: SightingCard["importance"];
+      items: Array<Record<string, unknown>>;
+    }
+  >();
+
+  for (const feature of geoJson.features) {
+    const [lng, lat] = feature.geometry.coordinates;
+    const worldX = lngToWorldX(lng, zoom);
+    const worldY = latToWorldY(lat, zoom);
+    const key = `${Math.floor(worldX / radius)}:${Math.floor(worldY / radius)}`;
+    const importance = feature.properties.importance;
+    const existing = groups.get(key);
+    if (!existing) {
+      groups.set(key, {
+        count: 1,
+        worldXTotal: worldX,
+        worldYTotal: worldY,
+        highestImportance: importance,
+        items: [feature.properties],
+      });
+      continue;
+    }
+
+    existing.count += 1;
+    existing.worldXTotal += worldX;
+    existing.worldYTotal += worldY;
+    if (
+      importanceRank[importance] > importanceRank[existing.highestImportance]
+    ) {
+      existing.highestImportance = importance;
+    }
+    if (existing.items.length < 12) {
+      existing.items.push(feature.properties);
+    }
+  }
+
+  return {
+    type: "FeatureCollection" as const,
+    features: Array.from(groups.entries())
+      .filter(([, group]) => group.count > 1)
+      .map(([id, group]) => ({
+        type: "Feature" as const,
+        properties: {
+          id,
+          point_count: group.count,
+          point_count_abbreviated:
+            group.count >= 1000
+              ? `${Math.round(group.count / 100) / 10}k`
+              : String(group.count),
+          importance: group.highestImportance,
+          items: JSON.stringify(group.items),
+        },
+        geometry: {
+          type: "Point" as const,
+          coordinates: [
+            worldXToLng(group.worldXTotal / group.count, zoom),
+            worldYToLat(group.worldYTotal / group.count, zoom),
+          ],
+        },
+      })),
+  };
+};
+
+const updateClusterSource = (map: maplibregl.Map, geoJson: SightingGeoJson) => {
+  const source = map.getSource(CLUSTER_SOURCE_ID) as GeoJSONSource | undefined;
+  if (source) {
+    source.setData(toClusterGeoJson(geoJson, map.getZoom()));
+  }
+};
+
 export const SightingsMap = ({
   sightings,
   selectedGeofence,
@@ -203,24 +317,20 @@ export const SightingsMap = ({
   const showClusterPreview = useCallback(
     async (
       map: maplibregl.Map,
-      clusterId: number,
+      clusterItems: unknown,
       coordinates: [number, number]
     ) => {
-      const source = map.getSource(CLUSTER_SOURCE_ID) as GeoJSONSource & {
-        getClusterLeaves?: (
-          clusterId: number,
-          limit: number,
-          offset: number
-        ) => Promise<Array<{ properties?: Record<string, unknown> }>>;
-      };
-
-      const leaves = source.getClusterLeaves
-        ? await source.getClusterLeaves(clusterId, 12, 0)
-        : [];
+      let leaves: Array<Record<string, unknown>> = [];
+      if (typeof clusterItems === "string") {
+        try {
+          leaves = JSON.parse(clusterItems) as Array<Record<string, unknown>>;
+        } catch {
+          leaves = [];
+        }
+      }
 
       const items = leaves
-        .map((leaf) => {
-          const properties = leaf.properties ?? {};
+        .map((properties) => {
           const title = escapeHtml(String(properties.title ?? "Untitled"));
           const category = escapeHtml(String(properties.category ?? ""));
           const importance = escapeHtml(String(properties.importance ?? ""));
@@ -259,31 +369,25 @@ export const SightingsMap = ({
       const features = map.queryRenderedFeatures(event.point, {
         layers: ["clusters"],
       });
-      const clusterId = features[0]?.properties?.cluster_id;
-      if (
-        typeof clusterId !== "number" ||
-        !features[0]?.geometry ||
-        features[0].geometry.type !== "Point"
-      ) {
+      const feature = features[0];
+      if (!feature?.geometry || feature.geometry.type !== "Point") {
         return;
       }
 
-      const coordinates = features[0].geometry.coordinates as [number, number];
-      const source = map.getSource(CLUSTER_SOURCE_ID) as GeoJSONSource;
+      const coordinates = feature.geometry.coordinates as [number, number];
+      const currentZoom = map.getZoom();
+      const pointCount = Number(feature.properties?.point_count ?? 0);
 
       try {
-        const zoom = await source.getClusterExpansionZoom(clusterId);
-        const currentZoom = map.getZoom();
-        if (zoom >= CLUSTER_PREVIEW_ZOOM || zoom <= currentZoom + 0.25) {
-          await showClusterPreview(map, clusterId, coordinates);
+        if (currentZoom >= CLUSTER_PREVIEW_ZOOM - 1 || pointCount <= 3) {
+          await showClusterPreview(map, feature.properties?.items, coordinates);
           return;
         }
 
         map.easeTo({
           center: coordinates,
           zoom: Math.min(
-            zoom ?? currentZoom + 1,
-            currentZoom + 1.25,
+            currentZoom + (currentZoom < 7 ? 2.25 : 1.5),
             CLUSTER_PREVIEW_ZOOM - 1
           ),
           duration: 450,
@@ -394,6 +498,10 @@ export const SightingsMap = ({
         map.on("click", "clusters", onClusterClick);
         map.on("click", "unclustered-point", onPointClick);
       };
+      const refreshClusters = () =>
+        updateClusterSource(map, geoJsonRef.current);
+      map.on("zoomend", refreshClusters);
+      map.on("moveend", refreshClusters);
 
       map.on("load", () => {
         console.log("Map loaded, mapRef will be set");
@@ -404,11 +512,7 @@ export const SightingsMap = ({
         });
         map.addSource(CLUSTER_SOURCE_ID, {
           type: "geojson",
-          data: geoJsonRef.current,
-          cluster: true,
-          clusterMaxZoom: CLUSTER_MAX_ZOOM,
-          clusterRadius: CLUSTER_RADIUS_PX,
-          clusterMinPoints: 2,
+          data: toClusterGeoJson(geoJsonRef.current, map.getZoom()),
         });
 
         // Heatmap layer (hidden by default) - very subtle like light clouds
@@ -780,11 +884,7 @@ export const SightingsMap = ({
         });
         map.addSource(CLUSTER_SOURCE_ID, {
           type: "geojson",
-          data: geoJsonRef.current,
-          cluster: true,
-          clusterMaxZoom: CLUSTER_MAX_ZOOM,
-          clusterRadius: CLUSTER_RADIUS_PX,
-          clusterMinPoints: 2,
+          data: toClusterGeoJson(geoJsonRef.current, map.getZoom()),
         });
 
         // Add all layers (heatmap, clusters, unclustered points)
@@ -1090,15 +1190,10 @@ export const SightingsMap = ({
     const pointSource = map.getSource(POINT_SOURCE_ID) as
       | GeoJSONSource
       | undefined;
-    const clusterSource = map.getSource(CLUSTER_SOURCE_ID) as
-      | GeoJSONSource
-      | undefined;
     if (pointSource) {
       pointSource.setData(geoJson);
     }
-    if (clusterSource) {
-      clusterSource.setData(geoJson);
-    }
+    updateClusterSource(map, geoJson);
   }, [geoJson]);
 
   useEffect(() => {
