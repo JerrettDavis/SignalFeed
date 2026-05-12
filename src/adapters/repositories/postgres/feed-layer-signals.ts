@@ -17,8 +17,36 @@ export const ensureFeedLayerSignals = async (sql: Sql): Promise<boolean> => {
     FROM signals
     WHERE id = ANY(${[...FEED_LAYER_SIGNAL_IDS]})
   `;
+  const hasMissingSignals =
+    Number(existing[0]?.count ?? 0) !== FEED_LAYER_SIGNAL_IDS.length;
 
-  if (Number(existing[0]?.count ?? 0) === FEED_LAYER_SIGNAL_IDS.length) {
+  const staleFeedSightings = await sql<{ count: string }[]>`
+    SELECT COUNT(*)::text AS count
+    FROM sightings
+    WHERE
+      (
+        fields->>'feedSource' = 'noaa-weather'
+        AND (
+          category_id <> 'cat-weather-alerts'
+          OR type_id NOT IN (
+            'type-tornado-alert',
+            'type-severe-thunderstorm-alert',
+            'type-flood-alert',
+            'type-winter-storm-alert',
+            'type-hurricane-alert',
+            'type-heat-alert',
+            'type-weather-alert'
+          )
+        )
+      )
+      OR (
+        fields->>'feedSource' = 'usgs-earthquakes'
+        AND (category_id <> 'cat-seismic-events' OR type_id <> 'type-earthquake')
+      )
+  `;
+  const hasStaleFeedSightings = Number(staleFeedSightings[0]?.count ?? 0) > 0;
+
+  if (!hasMissingSignals && !hasStaleFeedSightings) {
     return false;
   }
 
