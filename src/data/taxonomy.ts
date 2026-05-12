@@ -17,6 +17,8 @@ export const categories: Category[] = [
   { id: "cat-hazards", label: "Hazards" },
   { id: "cat-infrastructure", label: "Infrastructure" },
   { id: "cat-events", label: "Events" },
+  { id: "cat-weather-alerts", label: "Weather Alerts" },
+  { id: "cat-seismic-events", label: "Seismic Events" },
 ];
 
 export const sightingTypes: SightingType[] = [
@@ -34,6 +36,46 @@ export const sightingTypes: SightingType[] = [
     id: "type-public-safety",
     label: "Safety Alert",
     categoryId: "cat-public-safety",
+  },
+  {
+    id: "type-tornado-alert",
+    label: "Tornado Alert",
+    categoryId: "cat-weather-alerts",
+  },
+  {
+    id: "type-severe-thunderstorm-alert",
+    label: "Severe Thunderstorm Alert",
+    categoryId: "cat-weather-alerts",
+  },
+  {
+    id: "type-flood-alert",
+    label: "Flood Alert",
+    categoryId: "cat-weather-alerts",
+  },
+  {
+    id: "type-winter-storm-alert",
+    label: "Winter Storm Alert",
+    categoryId: "cat-weather-alerts",
+  },
+  {
+    id: "type-hurricane-alert",
+    label: "Tropical Cyclone Alert",
+    categoryId: "cat-weather-alerts",
+  },
+  {
+    id: "type-heat-alert",
+    label: "Heat Alert",
+    categoryId: "cat-weather-alerts",
+  },
+  {
+    id: "type-weather-alert",
+    label: "Weather Alert",
+    categoryId: "cat-weather-alerts",
+  },
+  {
+    id: "type-earthquake",
+    label: "Earthquake",
+    categoryId: "cat-seismic-events",
   },
 ];
 

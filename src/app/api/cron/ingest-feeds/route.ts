@@ -1,6 +1,7 @@
 import { NOAAWeatherFeed } from "@/adapters/feeds/noaa-weather-feed";
 import { USGSEarthquakeFeed } from "@/adapters/feeds/usgs-earthquake-feed";
 import { getSightingRepository } from "@/adapters/repositories/repository-factory";
+import { getSql } from "@/adapters/repositories/postgres/client";
 import { systemClock } from "@/adapters/clock/system-clock";
 import { ulidGenerator } from "@/adapters/id/ulid-generator";
 import { buildIngestFeedData } from "@/application/use-cases/feeds/ingest-feed-data";
@@ -9,6 +10,62 @@ import { NextResponse } from "next/server";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 export const maxDuration = 300; // 5 minutes max execution time
+
+const FEED_LAYER_SIGNAL_IDS = [
+  "signal-layer-weather-alerts",
+  "signal-layer-tornado-alerts",
+  "signal-layer-flood-alerts",
+  "signal-layer-storm-alerts",
+  "signal-layer-winter-weather-alerts",
+  "signal-layer-tropical-cyclones",
+  "signal-layer-heat-alerts",
+  "signal-layer-earthquakes",
+] as const;
+
+const associateFeedSightingsWithLayerSignals = async () => {
+  const sql = getSql();
+
+  await sql`
+    WITH layer_matches(signal_id, category_id, type_id) AS (
+      VALUES
+        ('signal-layer-weather-alerts', 'cat-weather-alerts', NULL),
+        ('signal-layer-tornado-alerts', NULL, 'type-tornado-alert'),
+        ('signal-layer-flood-alerts', NULL, 'type-flood-alert'),
+        ('signal-layer-storm-alerts', NULL, 'type-severe-thunderstorm-alert'),
+        ('signal-layer-winter-weather-alerts', NULL, 'type-winter-storm-alert'),
+        ('signal-layer-tropical-cyclones', NULL, 'type-hurricane-alert'),
+        ('signal-layer-heat-alerts', NULL, 'type-heat-alert'),
+        ('signal-layer-earthquakes', 'cat-seismic-events', NULL)
+    )
+    INSERT INTO signal_sightings (id, signal_id, sighting_id, added_by, added_at)
+    SELECT
+      'ss-' || s.id || '-' || lm.signal_id,
+      lm.signal_id,
+      s.id,
+      CASE
+        WHEN s.category_id = 'cat-seismic-events' THEN 'system-usgs'
+        ELSE 'system-noaa'
+      END,
+      COALESCE(s.created_at, NOW())
+    FROM sightings s
+    JOIN layer_matches lm
+      ON (lm.category_id IS NOT NULL AND s.category_id = lm.category_id)
+      OR (lm.type_id IS NOT NULL AND s.type_id = lm.type_id)
+    ON CONFLICT (signal_id, sighting_id) DO NOTHING
+  `;
+
+  await sql`
+    UPDATE signals
+    SET sighting_count = COALESCE(counts.total, 0)
+    FROM (
+      SELECT signal_id, COUNT(*)::int AS total
+      FROM signal_sightings
+      WHERE signal_id = ANY(${[...FEED_LAYER_SIGNAL_IDS]})
+      GROUP BY signal_id
+    ) counts
+    WHERE signals.id = counts.signal_id
+  `;
+};
 
 /**
  * Vercel Cron endpoint for ingesting external feed data
@@ -131,6 +188,16 @@ export async function GET(request: Request) {
         console.error(`[IngestFeeds:${feedName}] Fatal error:`, result.reason);
       }
     });
+
+    try {
+      await associateFeedSightingsWithLayerSignals();
+      console.log("[IngestFeeds] Feed layer signal associations refreshed");
+    } catch (error) {
+      console.error(
+        "[IngestFeeds] Failed to refresh feed layer signal associations:",
+        error
+      );
+    }
 
     const elapsedMs = Date.now() - startTime;
 

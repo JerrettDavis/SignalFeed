@@ -533,17 +533,20 @@ export const SightingsMap = ({
             visibility: "visible",
           },
           paint: {
-            // Size clusters by point count
             "circle-radius": [
-              "step",
+              "interpolate",
+              ["linear"],
               ["get", "point_count"],
-              20, // radius when count < 10
+              2,
+              22,
               10,
-              30, // radius when count >= 10
+              32,
               30,
-              40, // radius when count >= 30
+              44,
               100,
-              50, // radius when count >= 100
+              58,
+              250,
+              70,
             ],
             "circle-color": [
               "step",
@@ -556,8 +559,16 @@ export const SightingsMap = ({
               100,
               "#f06449", // color when count >= 100
             ],
-            "circle-opacity": 0.85,
-            "circle-stroke-width": 3,
+            "circle-opacity": 0.88,
+            "circle-stroke-width": [
+              "interpolate",
+              ["linear"],
+              ["get", "point_count"],
+              2,
+              3,
+              100,
+              5,
+            ],
             "circle-stroke-color": "#ffffff",
           },
         });
@@ -572,10 +583,24 @@ export const SightingsMap = ({
             visibility: "visible",
             "text-field": "{point_count_abbreviated}",
             "text-font": ["Noto Sans Regular"],
-            "text-size": 14,
+            "text-size": [
+              "interpolate",
+              ["linear"],
+              ["get", "point_count"],
+              2,
+              13,
+              30,
+              16,
+              100,
+              20,
+            ],
+            "text-allow-overlap": true,
+            "text-ignore-placement": true,
           },
           paint: {
             "text-color": "#ffffff",
+            "text-halo-color": "rgba(12, 26, 36, 0.45)",
+            "text-halo-width": 1.5,
           },
         });
 
@@ -829,15 +854,19 @@ export const SightingsMap = ({
           layout: { visibility: showHeatmap ? "none" : "visible" },
           paint: {
             "circle-radius": [
-              "step",
+              "interpolate",
+              ["linear"],
               ["get", "point_count"],
-              20,
+              2,
+              22,
               10,
+              32,
               30,
-              30,
-              40,
+              44,
               100,
-              50,
+              58,
+              250,
+              70,
             ],
             "circle-color": [
               "step",
@@ -850,8 +879,16 @@ export const SightingsMap = ({
               100,
               "#f06449",
             ],
-            "circle-opacity": 0.85,
-            "circle-stroke-width": 3,
+            "circle-opacity": 0.88,
+            "circle-stroke-width": [
+              "interpolate",
+              ["linear"],
+              ["get", "point_count"],
+              2,
+              3,
+              100,
+              5,
+            ],
             "circle-stroke-color": "#ffffff",
           },
         });
@@ -865,9 +902,25 @@ export const SightingsMap = ({
             visibility: showHeatmap ? "none" : "visible",
             "text-field": "{point_count_abbreviated}",
             "text-font": ["Noto Sans Regular"],
-            "text-size": 14,
+            "text-size": [
+              "interpolate",
+              ["linear"],
+              ["get", "point_count"],
+              2,
+              13,
+              30,
+              16,
+              100,
+              20,
+            ],
+            "text-allow-overlap": true,
+            "text-ignore-placement": true,
           },
-          paint: { "text-color": "#ffffff" },
+          paint: {
+            "text-color": "#ffffff",
+            "text-halo-color": "rgba(12, 26, 36, 0.45)",
+            "text-halo-width": 1.5,
+          },
         });
 
         map.addLayer({

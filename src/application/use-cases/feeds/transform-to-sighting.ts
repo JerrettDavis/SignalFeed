@@ -9,6 +9,8 @@ import type {
  */
 const CATEGORY_MAPPING: Record<string, string> = {
   emergency: "cat-emergency",
+  "weather-alerts": "cat-weather-alerts",
+  "seismic-events": "cat-seismic-events",
   traffic: "cat-traffic",
   community: "cat-community",
   wildlife: "cat-wildlife",

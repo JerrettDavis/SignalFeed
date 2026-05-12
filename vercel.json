@@ -1,5 +1,5 @@
 {
-  "buildCommand": "npm run build && node scripts/seed-database.mjs || echo 'Seed script failed (non-blocking) - check logs above'",
+  "buildCommand": "npm run build && node scripts/run-single-migration.mjs 021_add_feed_layer_categories_and_signals.sql && node scripts/seed-database.mjs || echo 'Database setup failed (non-blocking) - check logs above'",
   "framework": "nextjs",
   "headers": [
     {

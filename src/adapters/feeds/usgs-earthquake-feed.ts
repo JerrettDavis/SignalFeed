@@ -166,7 +166,7 @@ export class USGSEarthquakeFeed implements FeedProvider {
           description: generateDescription(feature),
           location: { lat, lng },
           severity: mapMagnitudeToSeverity(magnitude),
-          category: "emergency",
+          category: "seismic-events",
           typeId: "type-earthquake",
           observedAt: new Date(feature.properties.time),
           metadata: {

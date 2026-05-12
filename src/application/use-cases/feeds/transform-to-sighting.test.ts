@@ -72,6 +72,8 @@ describe("transformToSighting", () => {
   it("maps categories to category IDs", () => {
     const categories = [
       { input: "emergency", expected: "cat-emergency" },
+      { input: "weather-alerts", expected: "cat-weather-alerts" },
+      { input: "seismic-events", expected: "cat-seismic-events" },
       { input: "traffic", expected: "cat-traffic" },
       { input: "wildlife", expected: "cat-wildlife" },
       { input: "infrastructure", expected: "cat-infrastructure" },
