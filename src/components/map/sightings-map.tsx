@@ -44,10 +44,32 @@ const importanceRank = {
 const CLUSTER_MAX_ZOOM = 17;
 const CLUSTER_RADIUS_PX = 180;
 const CLUSTER_PREVIEW_ZOOM = 15;
-const POINT_DETAIL_MIN_ZOOM = 7;
+const NATIVE_CLUSTER_MIN_ZOOM = 8;
+const POINT_DETAIL_MIN_ZOOM = 11;
 const STACK_LABEL_MIN_ZOOM = 12;
-const OVERVIEW_CLUSTER_LNG_DEGREES = 6;
-const OVERVIEW_CLUSTER_LAT_DEGREES = 4.5;
+const OVERVIEW_CLUSTER_TIERS = [
+  {
+    id: "broad",
+    minZoom: 0,
+    maxZoom: 4,
+    lngDegrees: 18,
+    latDegrees: 12,
+  },
+  {
+    id: "regional",
+    minZoom: 4,
+    maxZoom: 6.5,
+    lngDegrees: 9,
+    latDegrees: 6,
+  },
+  {
+    id: "local",
+    minZoom: 6.5,
+    maxZoom: 9,
+    lngDegrees: 4.5,
+    latDegrees: 3,
+  },
+] as const;
 
 const coordinateKey = (location: SightingCard["location"]) =>
   `${location.lat.toFixed(4)}:${location.lng.toFixed(4)}`;
@@ -185,7 +207,21 @@ const toGeoJson = (sightings: SightingCard[]) => {
   };
 };
 
-const toOverviewGeoJson = (sightings: SightingCard[]) => {
+type OverviewClusterTier = (typeof OVERVIEW_CLUSTER_TIERS)[number];
+
+const overviewSourceId = (tier: OverviewClusterTier) =>
+  `sighting-overview-clusters-${tier.id}`;
+
+const overviewCircleLayerId = (tier: OverviewClusterTier) =>
+  `overview-clusters-${tier.id}`;
+
+const overviewCountLayerId = (tier: OverviewClusterTier) =>
+  `overview-cluster-count-${tier.id}`;
+
+const toOverviewGeoJson = (
+  sightings: SightingCard[],
+  tier: OverviewClusterTier
+) => {
   const groups = new Map<
     string,
     {
@@ -197,7 +233,7 @@ const toOverviewGeoJson = (sightings: SightingCard[]) => {
   >();
 
   for (const sighting of sightings) {
-    const key = `${Math.floor((sighting.location.lng + 180) / OVERVIEW_CLUSTER_LNG_DEGREES)}:${Math.floor((sighting.location.lat + 90) / OVERVIEW_CLUSTER_LAT_DEGREES)}`;
+    const key = `${Math.floor((sighting.location.lng + 180) / tier.lngDegrees)}:${Math.floor((sighting.location.lat + 90) / tier.latDegrees)}`;
     const existing = groups.get(key);
     if (!existing) {
       groups.set(key, {
@@ -257,17 +293,23 @@ export const SightingsMap = ({
   const [showHeatmap, setShowHeatmap] = useState(false);
 
   const geoJson = useMemo(() => toGeoJson(sightings), [sightings]);
-  const overviewGeoJson = useMemo(
-    () => toOverviewGeoJson(sightings),
+  const overviewGeoJsonByTier = useMemo(
+    () =>
+      new Map(
+        OVERVIEW_CLUSTER_TIERS.map((tier) => [
+          tier.id,
+          toOverviewGeoJson(sightings, tier),
+        ])
+      ),
     [sightings]
   );
   const geoJsonRef = useRef(geoJson);
-  const overviewGeoJsonRef = useRef(overviewGeoJson);
+  const overviewGeoJsonByTierRef = useRef(overviewGeoJsonByTier);
 
   useEffect(() => {
     geoJsonRef.current = geoJson;
-    overviewGeoJsonRef.current = overviewGeoJson;
-  }, [geoJson, overviewGeoJson]);
+    overviewGeoJsonByTierRef.current = overviewGeoJsonByTier;
+  }, [geoJson, overviewGeoJsonByTier]);
 
   // Toggle heatmap layer
   const toggleHeatmap = () => {
@@ -289,8 +331,10 @@ export const SightingsMap = ({
 
     if (newShowHeatmap) {
       // Hide clustered layers
-      setLayerVisibility("overview-clusters", "none");
-      setLayerVisibility("overview-cluster-count", "none");
+      for (const tier of OVERVIEW_CLUSTER_TIERS) {
+        setLayerVisibility(overviewCircleLayerId(tier), "none");
+        setLayerVisibility(overviewCountLayerId(tier), "none");
+      }
       setLayerVisibility("clusters", "none");
       setLayerVisibility("cluster-count", "none");
       setLayerVisibility("unclustered-point-glow", "none");
@@ -300,8 +344,10 @@ export const SightingsMap = ({
       setLayerVisibility("sightings-heatmap", "visible");
     } else {
       // Show clustered layers
-      setLayerVisibility("overview-clusters", "visible");
-      setLayerVisibility("overview-cluster-count", "visible");
+      for (const tier of OVERVIEW_CLUSTER_TIERS) {
+        setLayerVisibility(overviewCircleLayerId(tier), "visible");
+        setLayerVisibility(overviewCountLayerId(tier), "visible");
+      }
       setLayerVisibility("clusters", "visible");
       setLayerVisibility("cluster-count", "visible");
       setLayerVisibility("unclustered-point-glow", "visible");
@@ -417,7 +463,7 @@ export const SightingsMap = ({
 
       map.easeTo({
         center: feature.geometry.coordinates as [number, number],
-        zoom: Math.max(map.getZoom() + 2, POINT_DETAIL_MIN_ZOOM),
+        zoom: Math.min(map.getZoom() + 2.25, POINT_DETAIL_MIN_ZOOM),
         duration: 450,
         essential: true,
       });
@@ -521,10 +567,14 @@ export const SightingsMap = ({
         void handlePointClick(map, event);
       };
       const attachInteractionHandlers = () => {
-        map.off("click", "overview-clusters", onOverviewClusterClick);
+        for (const tier of OVERVIEW_CLUSTER_TIERS) {
+          map.off("click", overviewCircleLayerId(tier), onOverviewClusterClick);
+        }
         map.off("click", "clusters", onClusterClick);
         map.off("click", "unclustered-point", onPointClick);
-        map.on("click", "overview-clusters", onOverviewClusterClick);
+        for (const tier of OVERVIEW_CLUSTER_TIERS) {
+          map.on("click", overviewCircleLayerId(tier), onOverviewClusterClick);
+        }
         map.on("click", "clusters", onClusterClick);
         map.on("click", "unclustered-point", onPointClick);
       };
@@ -541,10 +591,14 @@ export const SightingsMap = ({
           clusterRadius: CLUSTER_RADIUS_PX,
           clusterMinPoints: 2,
         });
-        map.addSource("sighting-overview-clusters", {
-          type: "geojson",
-          data: overviewGeoJsonRef.current,
-        });
+        for (const tier of OVERVIEW_CLUSTER_TIERS) {
+          map.addSource(overviewSourceId(tier), {
+            type: "geojson",
+            data:
+              overviewGeoJsonByTierRef.current.get(tier.id) ??
+              toOverviewGeoJson([], tier),
+          });
+        }
 
         // Heatmap layer (hidden by default) - very subtle like light clouds
         map.addLayer({
@@ -622,76 +676,80 @@ export const SightingsMap = ({
           },
         });
 
-        map.addLayer({
-          id: "overview-clusters",
-          type: "circle",
-          source: "sighting-overview-clusters",
-          maxzoom: POINT_DETAIL_MIN_ZOOM,
-          layout: {
-            visibility: "visible",
-          },
-          paint: {
-            "circle-radius": [
-              "interpolate",
-              ["linear"],
-              ["get", "point_count"],
-              1,
-              18,
-              10,
-              30,
-              50,
-              46,
-              150,
-              62,
-              500,
-              82,
-            ],
-            "circle-color": [
-              "match",
-              ["get", "importance"],
-              "critical",
-              "#f06449",
-              "high",
-              "#f2c94c",
-              "low",
-              "#1f6f5b",
-              "#3a86ff",
-            ],
-            "circle-opacity": 0.9,
-            "circle-stroke-width": 4,
-            "circle-stroke-color": "#ffffff",
-          },
-        });
+        for (const tier of OVERVIEW_CLUSTER_TIERS) {
+          map.addLayer({
+            id: overviewCircleLayerId(tier),
+            type: "circle",
+            source: overviewSourceId(tier),
+            minzoom: tier.minZoom,
+            maxzoom: tier.maxZoom,
+            layout: {
+              visibility: "visible",
+            },
+            paint: {
+              "circle-radius": [
+                "interpolate",
+                ["linear"],
+                ["get", "point_count"],
+                1,
+                16,
+                10,
+                26,
+                50,
+                40,
+                150,
+                54,
+                500,
+                72,
+              ],
+              "circle-color": [
+                "match",
+                ["get", "importance"],
+                "critical",
+                "#f06449",
+                "high",
+                "#f2c94c",
+                "low",
+                "#1f6f5b",
+                "#3a86ff",
+              ],
+              "circle-opacity": 0.9,
+              "circle-stroke-width": 4,
+              "circle-stroke-color": "#ffffff",
+            },
+          });
 
-        map.addLayer({
-          id: "overview-cluster-count",
-          type: "symbol",
-          source: "sighting-overview-clusters",
-          maxzoom: POINT_DETAIL_MIN_ZOOM,
-          layout: {
-            visibility: "visible",
-            "text-field": ["concat", ["get", "point_count_abbreviated"], "+"],
-            "text-font": ["Noto Sans Regular"],
-            "text-size": [
-              "interpolate",
-              ["linear"],
-              ["get", "point_count"],
-              1,
-              12,
-              50,
-              16,
-              150,
-              20,
-            ],
-            "text-allow-overlap": true,
-            "text-ignore-placement": true,
-          },
-          paint: {
-            "text-color": "#ffffff",
-            "text-halo-color": "rgba(12, 26, 36, 0.5)",
-            "text-halo-width": 1.5,
-          },
-        });
+          map.addLayer({
+            id: overviewCountLayerId(tier),
+            type: "symbol",
+            source: overviewSourceId(tier),
+            minzoom: tier.minZoom,
+            maxzoom: tier.maxZoom,
+            layout: {
+              visibility: "visible",
+              "text-field": ["concat", ["get", "point_count_abbreviated"], "+"],
+              "text-font": ["Noto Sans Regular"],
+              "text-size": [
+                "interpolate",
+                ["linear"],
+                ["get", "point_count"],
+                1,
+                12,
+                50,
+                16,
+                150,
+                20,
+              ],
+              "text-allow-overlap": true,
+              "text-ignore-placement": true,
+            },
+            paint: {
+              "text-color": "#ffffff",
+              "text-halo-color": "rgba(12, 26, 36, 0.5)",
+              "text-halo-width": 1.5,
+            },
+          });
+        }
 
         // Cluster circles
         map.addLayer({
@@ -699,7 +757,7 @@ export const SightingsMap = ({
           type: "circle",
           source: "sightings",
           filter: ["has", "point_count"],
-          minzoom: POINT_DETAIL_MIN_ZOOM,
+          minzoom: NATIVE_CLUSTER_MIN_ZOOM,
           layout: {
             visibility: "visible",
           },
@@ -750,7 +808,7 @@ export const SightingsMap = ({
           type: "symbol",
           source: "sightings",
           filter: ["has", "point_count"],
-          minzoom: POINT_DETAIL_MIN_ZOOM,
+          minzoom: NATIVE_CLUSTER_MIN_ZOOM,
           layout: {
             visibility: "visible",
             "text-field": [
@@ -871,12 +929,14 @@ export const SightingsMap = ({
         attachInteractionHandlers();
 
         // Cursor handlers for clusters
-        map.on("mouseenter", "overview-clusters", () => {
-          map.getCanvas().style.cursor = "pointer";
-        });
-        map.on("mouseleave", "overview-clusters", () => {
-          map.getCanvas().style.cursor = "";
-        });
+        for (const tier of OVERVIEW_CLUSTER_TIERS) {
+          map.on("mouseenter", overviewCircleLayerId(tier), () => {
+            map.getCanvas().style.cursor = "pointer";
+          });
+          map.on("mouseleave", overviewCircleLayerId(tier), () => {
+            map.getCanvas().style.cursor = "";
+          });
+        }
         map.on("mouseenter", "clusters", () => {
           map.getCanvas().style.cursor = "pointer";
         });
@@ -939,10 +999,14 @@ export const SightingsMap = ({
       void handlePointClick(map, event);
     };
     const attachInteractionHandlers = () => {
-      map.off("click", "overview-clusters", onOverviewClusterClick);
+      for (const tier of OVERVIEW_CLUSTER_TIERS) {
+        map.off("click", overviewCircleLayerId(tier), onOverviewClusterClick);
+      }
       map.off("click", "clusters", onClusterClick);
       map.off("click", "unclustered-point", onPointClick);
-      map.on("click", "overview-clusters", onOverviewClusterClick);
+      for (const tier of OVERVIEW_CLUSTER_TIERS) {
+        map.on("click", overviewCircleLayerId(tier), onOverviewClusterClick);
+      }
       map.on("click", "clusters", onClusterClick);
       map.on("click", "unclustered-point", onPointClick);
     };
@@ -966,10 +1030,14 @@ export const SightingsMap = ({
           clusterRadius: CLUSTER_RADIUS_PX,
           clusterMinPoints: 2,
         });
-        map.addSource("sighting-overview-clusters", {
-          type: "geojson",
-          data: overviewGeoJsonRef.current,
-        });
+        for (const tier of OVERVIEW_CLUSTER_TIERS) {
+          map.addSource(overviewSourceId(tier), {
+            type: "geojson",
+            data:
+              overviewGeoJsonByTierRef.current.get(tier.id) ??
+              toOverviewGeoJson([], tier),
+          });
+        }
 
         // Add all layers (heatmap, clusters, unclustered points)
         map.addLayer({
@@ -1040,81 +1108,85 @@ export const SightingsMap = ({
           },
         });
 
-        map.addLayer({
-          id: "overview-clusters",
-          type: "circle",
-          source: "sighting-overview-clusters",
-          maxzoom: POINT_DETAIL_MIN_ZOOM,
-          layout: { visibility: showHeatmap ? "none" : "visible" },
-          paint: {
-            "circle-radius": [
-              "interpolate",
-              ["linear"],
-              ["get", "point_count"],
-              1,
-              18,
-              10,
-              30,
-              50,
-              46,
-              150,
-              62,
-              500,
-              82,
-            ],
-            "circle-color": [
-              "match",
-              ["get", "importance"],
-              "critical",
-              "#f06449",
-              "high",
-              "#f2c94c",
-              "low",
-              "#1f6f5b",
-              "#3a86ff",
-            ],
-            "circle-opacity": 0.9,
-            "circle-stroke-width": 4,
-            "circle-stroke-color": "#ffffff",
-          },
-        });
+        for (const tier of OVERVIEW_CLUSTER_TIERS) {
+          map.addLayer({
+            id: overviewCircleLayerId(tier),
+            type: "circle",
+            source: overviewSourceId(tier),
+            minzoom: tier.minZoom,
+            maxzoom: tier.maxZoom,
+            layout: { visibility: showHeatmap ? "none" : "visible" },
+            paint: {
+              "circle-radius": [
+                "interpolate",
+                ["linear"],
+                ["get", "point_count"],
+                1,
+                16,
+                10,
+                26,
+                50,
+                40,
+                150,
+                54,
+                500,
+                72,
+              ],
+              "circle-color": [
+                "match",
+                ["get", "importance"],
+                "critical",
+                "#f06449",
+                "high",
+                "#f2c94c",
+                "low",
+                "#1f6f5b",
+                "#3a86ff",
+              ],
+              "circle-opacity": 0.9,
+              "circle-stroke-width": 4,
+              "circle-stroke-color": "#ffffff",
+            },
+          });
 
-        map.addLayer({
-          id: "overview-cluster-count",
-          type: "symbol",
-          source: "sighting-overview-clusters",
-          maxzoom: POINT_DETAIL_MIN_ZOOM,
-          layout: {
-            visibility: showHeatmap ? "none" : "visible",
-            "text-field": ["concat", ["get", "point_count_abbreviated"], "+"],
-            "text-font": ["Noto Sans Regular"],
-            "text-size": [
-              "interpolate",
-              ["linear"],
-              ["get", "point_count"],
-              1,
-              12,
-              50,
-              16,
-              150,
-              20,
-            ],
-            "text-allow-overlap": true,
-            "text-ignore-placement": true,
-          },
-          paint: {
-            "text-color": "#ffffff",
-            "text-halo-color": "rgba(12, 26, 36, 0.5)",
-            "text-halo-width": 1.5,
-          },
-        });
+          map.addLayer({
+            id: overviewCountLayerId(tier),
+            type: "symbol",
+            source: overviewSourceId(tier),
+            minzoom: tier.minZoom,
+            maxzoom: tier.maxZoom,
+            layout: {
+              visibility: showHeatmap ? "none" : "visible",
+              "text-field": ["concat", ["get", "point_count_abbreviated"], "+"],
+              "text-font": ["Noto Sans Regular"],
+              "text-size": [
+                "interpolate",
+                ["linear"],
+                ["get", "point_count"],
+                1,
+                12,
+                50,
+                16,
+                150,
+                20,
+              ],
+              "text-allow-overlap": true,
+              "text-ignore-placement": true,
+            },
+            paint: {
+              "text-color": "#ffffff",
+              "text-halo-color": "rgba(12, 26, 36, 0.5)",
+              "text-halo-width": 1.5,
+            },
+          });
+        }
 
         map.addLayer({
           id: "clusters",
           type: "circle",
           source: "sightings",
           filter: ["has", "point_count"],
-          minzoom: POINT_DETAIL_MIN_ZOOM,
+          minzoom: NATIVE_CLUSTER_MIN_ZOOM,
           layout: { visibility: showHeatmap ? "none" : "visible" },
           paint: {
             "circle-radius": [
@@ -1162,7 +1234,7 @@ export const SightingsMap = ({
           type: "symbol",
           source: "sightings",
           filter: ["has", "point_count"],
-          minzoom: POINT_DETAIL_MIN_ZOOM,
+          minzoom: NATIVE_CLUSTER_MIN_ZOOM,
           layout: {
             visibility: showHeatmap ? "none" : "visible",
             "text-field": [
@@ -1277,16 +1349,18 @@ export const SightingsMap = ({
         attachInteractionHandlers();
 
         // Re-add cursor handlers
-        map.on(
-          "mouseenter",
-          "overview-clusters",
-          () => (map.getCanvas().style.cursor = "pointer")
-        );
-        map.on(
-          "mouseleave",
-          "overview-clusters",
-          () => (map.getCanvas().style.cursor = "")
-        );
+        for (const tier of OVERVIEW_CLUSTER_TIERS) {
+          map.on(
+            "mouseenter",
+            overviewCircleLayerId(tier),
+            () => (map.getCanvas().style.cursor = "pointer")
+          );
+          map.on(
+            "mouseleave",
+            overviewCircleLayerId(tier),
+            () => (map.getCanvas().style.cursor = "")
+          );
+        }
         map.on(
           "mouseenter",
           "clusters",
@@ -1326,13 +1400,16 @@ export const SightingsMap = ({
     if (source) {
       source.setData(geoJson);
     }
-    const overviewSource = map.getSource("sighting-overview-clusters") as
-      | GeoJSONSource
-      | undefined;
-    if (overviewSource) {
-      overviewSource.setData(overviewGeoJson);
+    for (const tier of OVERVIEW_CLUSTER_TIERS) {
+      const overviewSource = map.getSource(overviewSourceId(tier)) as
+        | GeoJSONSource
+        | undefined;
+      const overviewGeoJson = overviewGeoJsonByTier.get(tier.id);
+      if (overviewSource && overviewGeoJson) {
+        overviewSource.setData(overviewGeoJson);
+      }
     }
-  }, [geoJson, overviewGeoJson]);
+  }, [geoJson, overviewGeoJsonByTier]);
 
   useEffect(() => {
     const map = mapRef.current;
