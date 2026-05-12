@@ -19,7 +19,6 @@ const bodyFont = Space_Grotesk({
 export const metadata: Metadata = {
   title: "SignalFeed",
   description: "Real-time signals for everything you care about",
-  manifest: "/manifest.json",
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",
@@ -47,7 +46,11 @@ export default function RootLayout({
       suppressHydrationWarning
     >
       <head>
-        <link rel="manifest" href="/manifest.json" />
+        <link
+          rel="manifest"
+          href="/manifest.json"
+          crossOrigin="use-credentials"
+        />
         <link rel="icon" href="/favicon.png" type="image/png" />
         <link rel="apple-touch-icon" href="/icon-192.png" />
         <meta name="theme-color" content="#0078ff" />

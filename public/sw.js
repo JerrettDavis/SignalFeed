@@ -1,14 +1,20 @@
-// Service Worker for SightSignal PWA
-const CACHE_NAME = "sightsignal-v1";
-const STATIC_CACHE = ["/", "/manifest.json"];
+// Service Worker for SignalFeed PWA
+const CACHE_NAME = "signalfeed-v2";
+const STATIC_CACHE = ["/"];
 
 // Install event - cache static assets
 self.addEventListener("install", (event) => {
   console.log("[SW] Install event");
   event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => {
+    caches.open(CACHE_NAME).then(async (cache) => {
       console.log("[SW] Caching static assets");
-      return cache.addAll(STATIC_CACHE);
+      await Promise.allSettled(
+        STATIC_CACHE.map((url) =>
+          cache.add(url).catch((error) => {
+            console.warn("[SW] Failed to cache static asset:", url, error);
+          })
+        )
+      );
     })
   );
   self.skipWaiting();
@@ -25,6 +31,7 @@ self.addEventListener("activate", (event) => {
             console.log("[SW] Deleting old cache:", cacheName);
             return caches.delete(cacheName);
           }
+          return Promise.resolve(false);
         })
       );
     })
@@ -43,23 +50,43 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
-  event.respondWith(
-    fetch(request)
-      .then((response) => {
-        // Clone the response
-        const responseClone = response.clone();
-        // Cache the fetched response
-        caches.open(CACHE_NAME).then((cache) => {
-          cache.put(request, responseClone);
-        });
-        return response;
-      })
-      .catch(() => {
-        // If network fails, try cache
-        return caches.match(request);
-      })
-  );
+  event.respondWith(handleFetch(request));
 });
+
+const handleFetch = async (request) => {
+  try {
+    const response = await fetch(request);
+
+    if (response.ok) {
+      const responseClone = response.clone();
+      caches.open(CACHE_NAME).then((cache) => {
+        cache.put(request, responseClone).catch((error) => {
+          console.warn("[SW] Failed to cache response:", request.url, error);
+        });
+      });
+    }
+
+    return response;
+  } catch {
+    const cached = await caches.match(request);
+    if (cached) return cached;
+
+    if (request.mode === "navigate") {
+      return new Response(
+        "<!doctype html><title>Offline</title><h1>SignalFeed is offline</h1>",
+        {
+          status: 503,
+          headers: { "Content-Type": "text/html; charset=utf-8" },
+        }
+      );
+    }
+
+    return new Response("", {
+      status: 503,
+      statusText: "Service Unavailable",
+    });
+  }
+};
 
 // Push notification event
 self.addEventListener("push", (event) => {
