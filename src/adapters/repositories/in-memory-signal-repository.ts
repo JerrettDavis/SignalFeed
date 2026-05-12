@@ -16,14 +16,13 @@ const getStore = (): Store => {
   };
   if (!globalAny.__sightsignal_signals) {
     globalAny.__sightsignal_signals = new Map<SignalId, Signal>();
-    // Load seed data on first initialization
-    if (!globalAny.__sightsignal_signals_initialized) {
-      seedSignals.forEach((signal) => {
-        globalAny.__sightsignal_signals!.set(signal.id, signal);
-      });
-      globalAny.__sightsignal_signals_initialized = true;
-    }
   }
+  seedSignals.forEach((signal) => {
+    if (!globalAny.__sightsignal_signals!.has(signal.id)) {
+      globalAny.__sightsignal_signals!.set(signal.id, signal);
+    }
+  });
+  globalAny.__sightsignal_signals_initialized = true;
   return globalAny.__sightsignal_signals;
 };
 
