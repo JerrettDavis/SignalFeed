@@ -71,7 +71,7 @@ export default function RootLayout({
             if ('serviceWorker' in navigator && signalFeedPwaHost) {
               window.addEventListener('load', () => {
                 navigator.serviceWorker.register('/sw.js').then(
-                  registration => console.log('[SW] Registered:', registration.scope),
+                  registration => console.log('[SW] Registered:', registration?.scope ?? 'blocked'),
                   error => console.error('[SW] Registration failed:', error)
                 );
               });

@@ -142,6 +142,55 @@ const toGeoJson = (sightings: SightingCard[]) => {
 };
 
 type SightingGeoJson = ReturnType<typeof toGeoJson>;
+type ClusterFeature = {
+  type: "Feature";
+  properties: {
+    id: string;
+    point_count: number;
+    cluster_radius: number;
+    point_count_abbreviated: string;
+    importance: SightingCard["importance"];
+    items: string;
+  };
+  geometry: {
+    type: "Point";
+    coordinates: [number, number];
+  };
+};
+
+type ClusterGeoJson = {
+  type: "FeatureCollection";
+  features: ClusterFeature[];
+};
+
+type ClusterState = {
+  clusterGeoJson: ClusterGeoJson;
+  clusteredPointIds: Set<string>;
+};
+
+declare global {
+  interface Window {
+    __signalFeedMapDebug?: {
+      getClusterSummary: () => {
+        zoom: number;
+        clusterCount: number;
+        maxClusterSize: number;
+        totalClusteredPoints: number;
+        visiblePointCount: number;
+        clusters: Array<{
+          count: number;
+          lng: number;
+          lat: number;
+          radius: number;
+        }>;
+      } | null;
+      setView: (view: {
+        zoom: number;
+        center?: [number, number];
+      }) => Promise<void>;
+    };
+  }
+}
 
 const worldSize = (zoom: number) => MERCATOR_TILE_SIZE * 2 ** zoom;
 
@@ -167,13 +216,13 @@ const worldYToLat = (y: number, zoom: number) => {
 };
 
 const clusterRadiusForZoom = (zoom: number) => {
-  if (zoom < 4) return 92;
-  if (zoom < 6) return 72;
-  if (zoom < 8) return 52;
-  if (zoom < 10) return 38;
-  if (zoom < 12) return 28;
-  if (zoom < 14) return 20;
-  return 14;
+  if (zoom < 5) return 180;
+  if (zoom < 6.5) return 130;
+  if (zoom < 8) return 100;
+  if (zoom < 10) return 80;
+  if (zoom < 13) return 64;
+  if (zoom < 14) return 34;
+  return 18;
 };
 
 const minClusterPointsForZoom = (zoom: number) => {
@@ -181,110 +230,133 @@ const minClusterPointsForZoom = (zoom: number) => {
   return 2;
 };
 
-const toClusterGeoJson = (geoJson: SightingGeoJson, zoom: number) => {
+const toClusterState = (
+  geoJson: SightingGeoJson,
+  zoom: number
+): ClusterState => {
   if (zoom >= CLUSTER_PREVIEW_ZOOM) {
-    return { type: "FeatureCollection" as const, features: [] };
+    return {
+      clusterGeoJson: { type: "FeatureCollection" as const, features: [] },
+      clusteredPointIds: new Set(),
+    };
   }
 
   const radius = clusterRadiusForZoom(zoom);
   const minClusterPoints = minClusterPointsForZoom(zoom);
-  const radiusSquared = radius * radius;
-  const bins = new Map<string, number[]>();
-  const projected = geoJson.features.map((feature) => {
+  const groups = new Map<
+    string,
+    {
+      count: number;
+      worldXTotal: number;
+      worldYTotal: number;
+      highestImportance: SightingCard["importance"];
+      ids: string[];
+      items: Array<Record<string, unknown>>;
+    }
+  >();
+
+  for (const feature of geoJson.features) {
     const [lng, lat] = feature.geometry.coordinates;
     const worldX = lngToWorldX(lng, zoom);
     const worldY = latToWorldY(lat, zoom);
-    const binX = Math.floor(worldX / radius);
-    const binY = Math.floor(worldY / radius);
-    return { feature, worldX, worldY, binX, binY, used: false };
-  });
+    const key = `${Math.floor(worldX / radius)}:${Math.floor(worldY / radius)}`;
+    const importance = feature.properties.importance;
+    const existing = groups.get(key);
 
-  projected.forEach((item, index) => {
-    const key = `${item.binX}:${item.binY}`;
-    bins.set(key, [...(bins.get(key) ?? []), index]);
-  });
-
-  const clusterFeatures = [];
-
-  for (let index = 0; index < projected.length; index += 1) {
-    const item = projected[index];
-    if (item.used) {
+    if (!existing) {
+      groups.set(key, {
+        count: 1,
+        worldXTotal: worldX,
+        worldYTotal: worldY,
+        highestImportance: importance,
+        ids: [String(feature.properties.id)],
+        items: [feature.properties],
+      });
       continue;
     }
 
-    const nearby: number[] = [];
-    for (let x = item.binX - 1; x <= item.binX + 1; x += 1) {
-      for (let y = item.binY - 1; y <= item.binY + 1; y += 1) {
-        for (const candidateIndex of bins.get(`${x}:${y}`) ?? []) {
-          const candidate = projected[candidateIndex];
-          if (candidate.used) {
-            continue;
-          }
-
-          const dx = candidate.worldX - item.worldX;
-          const dy = candidate.worldY - item.worldY;
-          if (dx * dx + dy * dy <= radiusSquared) {
-            nearby.push(candidateIndex);
-          }
-        }
-      }
+    existing.count += 1;
+    existing.worldXTotal += worldX;
+    existing.worldYTotal += worldY;
+    existing.ids.push(String(feature.properties.id));
+    if (
+      importanceRank[importance] > importanceRank[existing.highestImportance]
+    ) {
+      existing.highestImportance = importance;
     }
-
-    if (nearby.length < minClusterPoints) {
-      continue;
+    if (existing.items.length < 12) {
+      existing.items.push(feature.properties);
     }
-
-    let worldXTotal = 0;
-    let worldYTotal = 0;
-    let highestImportance: SightingCard["importance"] = "low";
-    const items: Array<Record<string, unknown>> = [];
-
-    for (const nearbyIndex of nearby) {
-      const nearbyItem = projected[nearbyIndex];
-      nearbyItem.used = true;
-      worldXTotal += nearbyItem.worldX;
-      worldYTotal += nearbyItem.worldY;
-
-      const importance = nearbyItem.feature.properties.importance;
-      if (importanceRank[importance] > importanceRank[highestImportance]) {
-        highestImportance = importance;
-      }
-      if (items.length < 12) {
-        items.push(nearbyItem.feature.properties);
-      }
-    }
-
-    const count = nearby.length;
-    clusterFeatures.push({
-      type: "Feature" as const,
-      properties: {
-        id: `${index}:${count}:${zoom.toFixed(2)}`,
-        point_count: count,
-        point_count_abbreviated:
-          count >= 1000 ? `${Math.round(count / 100) / 10}k` : String(count),
-        importance: highestImportance,
-        items: JSON.stringify(items),
-      },
-      geometry: {
-        type: "Point" as const,
-        coordinates: [
-          worldXToLng(worldXTotal / count, zoom),
-          worldYToLat(worldYTotal / count, zoom),
-        ],
-      },
-    });
   }
 
+  const clusteredPointIds = new Set<string>();
+  const clusterFeatures: ClusterGeoJson["features"] = Array.from(
+    groups.entries()
+  )
+    .filter(([, group]) => group.count >= minClusterPoints)
+    .map(([id, group]) => {
+      for (const pointId of group.ids) {
+        clusteredPointIds.add(pointId);
+      }
+
+      return {
+        type: "Feature" as const,
+        properties: {
+          id: `${id}:${zoom.toFixed(2)}`,
+          point_count: group.count,
+          cluster_radius: radius,
+          point_count_abbreviated:
+            group.count >= 1000
+              ? `${Math.round(group.count / 100) / 10}k`
+              : String(group.count),
+          importance: group.highestImportance,
+          items: JSON.stringify(group.items),
+        },
+        geometry: {
+          type: "Point" as const,
+          coordinates: [
+            worldXToLng(group.worldXTotal / group.count, zoom),
+            worldYToLat(group.worldYTotal / group.count, zoom),
+          ],
+        },
+      };
+    });
+
   return {
-    type: "FeatureCollection" as const,
-    features: clusterFeatures,
+    clusterGeoJson: {
+      type: "FeatureCollection" as const,
+      features: clusterFeatures,
+    },
+    clusteredPointIds,
   };
 };
 
-const updateClusterSource = (map: maplibregl.Map, geoJson: SightingGeoJson) => {
-  const source = map.getSource(CLUSTER_SOURCE_ID) as GeoJSONSource | undefined;
-  if (source) {
-    source.setData(toClusterGeoJson(geoJson, map.getZoom()));
+const toVisiblePointGeoJson = (
+  geoJson: SightingGeoJson,
+  clusteredPointIds: Set<string>
+): SightingGeoJson => ({
+  type: "FeatureCollection" as const,
+  features: geoJson.features.filter(
+    (feature) => !clusteredPointIds.has(String(feature.properties.id))
+  ),
+});
+
+const updateMapSources = (map: maplibregl.Map, geoJson: SightingGeoJson) => {
+  const clusterSource = map.getSource(CLUSTER_SOURCE_ID) as
+    | GeoJSONSource
+    | undefined;
+  const pointSource = map.getSource(POINT_SOURCE_ID) as
+    | GeoJSONSource
+    | undefined;
+  const clusterState = toClusterState(geoJson, map.getZoom());
+
+  if (clusterSource) {
+    clusterSource.setData(clusterState.clusterGeoJson);
+  }
+  if (pointSource) {
+    pointSource.setData(
+      toVisiblePointGeoJson(geoJson, clusterState.clusteredPointIds)
+    );
   }
 };
 
@@ -306,6 +378,61 @@ export const SightingsMap = ({
   useEffect(() => {
     geoJsonRef.current = geoJson;
   }, [geoJson]);
+
+  useEffect(() => {
+    window.__signalFeedMapDebug = {
+      getClusterSummary: () => {
+        const map = mapRef.current;
+        if (!map) {
+          return null;
+        }
+
+        const zoom = map.getZoom();
+        const clusterState = toClusterState(geoJsonRef.current, zoom);
+        const clusters = clusterState.clusterGeoJson.features.map(
+          (feature) => ({
+            count: Number(feature.properties.point_count),
+            lng: feature.geometry.coordinates[0],
+            lat: feature.geometry.coordinates[1],
+            radius: Number(feature.properties.cluster_radius),
+          })
+        );
+
+        return {
+          zoom,
+          clusterCount: clusters.length,
+          maxClusterSize: Math.max(0, ...clusters.map((item) => item.count)),
+          totalClusteredPoints: clusters.reduce(
+            (total, item) => total + item.count,
+            0
+          ),
+          visiblePointCount:
+            geoJsonRef.current.features.length -
+            clusterState.clusteredPointIds.size,
+          clusters,
+        };
+      },
+      setView: ({ zoom, center }) =>
+        new Promise<void>((resolve) => {
+          const map = mapRef.current;
+          if (!map) {
+            resolve();
+            return;
+          }
+
+          map.once("idle", () => resolve());
+          map.jumpTo({
+            center: center ?? map.getCenter(),
+            zoom,
+          });
+          updateMapSources(map, geoJsonRef.current);
+        }),
+    };
+
+    return () => {
+      delete window.__signalFeedMapDebug;
+    };
+  }, []);
 
   // Toggle heatmap layer
   const toggleHeatmap = () => {
@@ -530,8 +657,7 @@ export const SightingsMap = ({
         map.on("click", "clusters", onClusterClick);
         map.on("click", "unclustered-point", onPointClick);
       };
-      const refreshClusters = () =>
-        updateClusterSource(map, geoJsonRef.current);
+      const refreshClusters = () => updateMapSources(map, geoJsonRef.current);
       map.on("zoomend", refreshClusters);
       map.on("moveend", refreshClusters);
 
@@ -540,11 +666,15 @@ export const SightingsMap = ({
 
         map.addSource(POINT_SOURCE_ID, {
           type: "geojson",
-          data: geoJsonRef.current,
+          data: toVisiblePointGeoJson(
+            geoJsonRef.current,
+            toClusterState(geoJsonRef.current, map.getZoom()).clusteredPointIds
+          ),
         });
         map.addSource(CLUSTER_SOURCE_ID, {
           type: "geojson",
-          data: toClusterGeoJson(geoJsonRef.current, map.getZoom()),
+          data: toClusterState(geoJsonRef.current, map.getZoom())
+            .clusterGeoJson,
         });
 
         // Heatmap layer (hidden by default) - very subtle like light clouds
@@ -831,7 +961,6 @@ export const SightingsMap = ({
         });
 
         attachInteractionHandlers();
-        map.moveLayer("clusters");
         map.moveLayer("cluster-count");
 
         // Cursor handlers for clusters
@@ -912,11 +1041,15 @@ export const SightingsMap = ({
       if (!map.getSource(POINT_SOURCE_ID)) {
         map.addSource(POINT_SOURCE_ID, {
           type: "geojson",
-          data: geoJsonRef.current,
+          data: toVisiblePointGeoJson(
+            geoJsonRef.current,
+            toClusterState(geoJsonRef.current, map.getZoom()).clusteredPointIds
+          ),
         });
         map.addSource(CLUSTER_SOURCE_ID, {
           type: "geojson",
-          data: toClusterGeoJson(geoJsonRef.current, map.getZoom()),
+          data: toClusterState(geoJsonRef.current, map.getZoom())
+            .clusterGeoJson,
         });
 
         // Add all layers (heatmap, clusters, unclustered points)
@@ -1186,7 +1319,6 @@ export const SightingsMap = ({
         });
 
         attachInteractionHandlers();
-        map.moveLayer("clusters");
         map.moveLayer("cluster-count");
 
         // Re-add cursor handlers
@@ -1219,13 +1351,7 @@ export const SightingsMap = ({
     if (!map) {
       return;
     }
-    const pointSource = map.getSource(POINT_SOURCE_ID) as
-      | GeoJSONSource
-      | undefined;
-    if (pointSource) {
-      pointSource.setData(geoJson);
-    }
-    updateClusterSource(map, geoJson);
+    updateMapSources(map, geoJson);
   }, [geoJson]);
 
   useEffect(() => {

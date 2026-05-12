@@ -1,7 +1,7 @@
 import path from "node:path";
 import { defineConfig } from "@playwright/test";
 
-const baseUrl = "http://127.0.0.1:3000";
+const baseUrl = "http://localhost:3000";
 const e2eDataDir = path.join(process.cwd(), ".local", "e2e");
 
 export default defineConfig({
@@ -13,13 +13,14 @@ export default defineConfig({
   use: {
     baseURL: baseUrl,
     trace: "on-first-retry",
+    serviceWorkers: "block",
     viewport: { width: 1920, height: 1080 }, // Larger viewport to prevent overflow issues
   },
   workers: process.env.CI ? 4 : 1, // Use 4 workers for better parallelization
   fullyParallel: true, // Run tests in parallel within files
   globalSetup: "./tests/e2e/global-setup.ts",
   webServer: {
-    command: "npm run dev -- --port 3000",
+    command: "npm run dev -- --webpack --port 3000",
     url: baseUrl,
     reuseExistingServer: !process.env.CI,
     env: {
