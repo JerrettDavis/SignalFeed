@@ -1,5 +1,5 @@
 import type { Sql } from "postgres";
-import type { Signal, SignalConditions } from "@/domain/signals/signal";
+import type { Signal } from "@/domain/signals/signal";
 import type { Sighting, SightingId } from "@/domain/sightings/sighting";
 import { parseCustomFields } from "@/adapters/repositories/postgres/json-fields";
 
@@ -72,11 +72,56 @@ export const mapSignalSightingRow = (row: SightingRow): Sighting => ({
     (row.visibility_state as Sighting["visibilityState"]) ?? "visible",
 });
 
-const buildConditionWhere = (conditions: SignalConditions) => {
+const FEED_LAYER_MATCHES: Record<string, string[]> = {
+  "signal-layer-weather-alerts": [
+    "fields->>'feedSource' = 'noaa-weather'",
+    "category_id = 'cat-weather-alerts'",
+  ],
+  "signal-layer-tornado-alerts": [
+    "type_id = 'type-tornado-alert'",
+    "(fields->>'feedSource' = 'noaa-weather' AND lower(fields->>'event') LIKE '%tornado%')",
+  ],
+  "signal-layer-flood-alerts": [
+    "type_id IN ('type-flood-alert', 'type-flood', 'type-flooding')",
+    "(fields->>'feedSource' = 'noaa-weather' AND lower(fields->>'event') LIKE '%flood%')",
+  ],
+  "signal-layer-storm-alerts": [
+    "type_id = 'type-severe-thunderstorm-alert'",
+    "(fields->>'feedSource' = 'noaa-weather' AND lower(fields->>'event') LIKE '%thunderstorm%')",
+  ],
+  "signal-layer-winter-weather-alerts": [
+    "type_id = 'type-winter-storm-alert'",
+    "(fields->>'feedSource' = 'noaa-weather' AND (lower(fields->>'event') LIKE '%winter%' OR lower(fields->>'event') LIKE '%blizzard%' OR lower(fields->>'event') LIKE '%snow%' OR lower(fields->>'event') LIKE '%ice%'))",
+  ],
+  "signal-layer-tropical-cyclones": [
+    "type_id = 'type-hurricane-alert'",
+    "(fields->>'feedSource' = 'noaa-weather' AND (lower(fields->>'event') LIKE '%hurricane%' OR lower(fields->>'event') LIKE '%tropical%'))",
+  ],
+  "signal-layer-heat-alerts": [
+    "type_id = 'type-heat-alert'",
+    "(fields->>'feedSource' = 'noaa-weather' AND lower(fields->>'event') LIKE '%heat%')",
+  ],
+  "signal-layer-earthquakes": [
+    "fields->>'feedSource' = 'usgs-earthquakes'",
+    "category_id = 'cat-seismic-events'",
+    "type_id = 'type-earthquake'",
+  ],
+};
+
+const buildConditionWhere = (signal: Signal) => {
+  const conditions = signal.conditions;
   const clauses: string[] = ["status = 'active'"];
   const matchClauses: string[] = [];
   const params: unknown[] = [];
   const operator = conditions.operator === "OR" ? "OR" : "AND";
+
+  const feedLayerMatches = FEED_LAYER_MATCHES[signal.id];
+  if (feedLayerMatches) {
+    return {
+      params,
+      whereClause: `${clauses[0]} AND (${feedLayerMatches.join(" OR ")})`,
+    };
+  }
 
   const addMatch = (clause: string, value: unknown) => {
     params.push(value);
@@ -113,7 +158,7 @@ export const countSightingsMatchingSignal = async (
   sql: Sql,
   signal: Signal
 ): Promise<number> => {
-  const { whereClause, params } = buildConditionWhere(signal.conditions);
+  const { whereClause, params } = buildConditionWhere(signal);
   const rows = await sql.unsafe<{ count: string }[]>(
     `SELECT COUNT(*)::text AS count FROM sightings WHERE ${whereClause}`,
     params as never[]
@@ -126,7 +171,7 @@ export const listSightingsMatchingSignal = async (
   signal: Signal,
   options: { limit: number; offset: number }
 ): Promise<Sighting[]> => {
-  const { whereClause, params } = buildConditionWhere(signal.conditions);
+  const { whereClause, params } = buildConditionWhere(signal);
   const rows = await sql.unsafe<SightingRow[]>(
     `
       SELECT *
