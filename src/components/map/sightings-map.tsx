@@ -2,7 +2,7 @@
 
 import type maplibregl from "maplibre-gl";
 import type { GeoJSONSource } from "maplibre-gl";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { config } from "@/shared/config";
 import { loadMaplibre } from "@/shared/maplibre";
 import type { SightingCard } from "@/data/mock-sightings";
@@ -34,26 +34,148 @@ type Props = {
   selectedSighting?: SelectedSighting | null;
 };
 
-const toGeoJson = (sightings: SightingCard[]) => ({
-  type: "FeatureCollection" as const,
-  features: sightings.map((sighting) => ({
-    type: "Feature" as const,
-    properties: {
-      id: sighting.id,
-      title: sighting.title,
-      category: sighting.category,
-      importance: sighting.importance,
-      status: sighting.status,
-      description: sighting.description,
-      score: sighting.score ?? 0,
-      hotScore: sighting.hotScore ?? 0,
-    },
-    geometry: {
-      type: "Point" as const,
-      coordinates: [sighting.location.lng, sighting.location.lat],
-    },
-  })),
-});
+const importanceRank = {
+  critical: 4,
+  high: 3,
+  normal: 2,
+  low: 1,
+} as const;
+
+const coordinateKey = (location: SightingCard["location"]) =>
+  `${location.lat.toFixed(4)}:${location.lng.toFixed(4)}`;
+
+const metersToLng = (meters: number, lat: number) => {
+  const cosLat = Math.cos((lat * Math.PI) / 180);
+  return meters / (111_320 * Math.max(cosLat, 0.1));
+};
+
+const metersToLat = (meters: number) => meters / 110_540;
+
+const getStackOffset = (index: number, stackCount: number) => {
+  if (stackCount <= 1) {
+    return { xMeters: 0, yMeters: 0 };
+  }
+
+  let remaining = index;
+  let ring = 0;
+  let ringCapacity = 8;
+
+  while (remaining >= ringCapacity) {
+    remaining -= ringCapacity;
+    ring += 1;
+    ringCapacity = 8 + ring * 6;
+  }
+
+  const remainingAfterPreviousRings = stackCount - (index - remaining);
+  const countOnRing = Math.min(ringCapacity, remainingAfterPreviousRings);
+  const angle = (remaining / countOnRing) * Math.PI * 2 + ring * 0.43;
+  const radiusMeters = Math.min(24 + ring * 18, 240);
+
+  return {
+    xMeters: Math.cos(angle) * radiusMeters,
+    yMeters: Math.sin(angle) * radiusMeters,
+  };
+};
+
+const escapeHtml = (value: string) =>
+  value
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#039;");
+
+const getFocusZoom = (currentZoom: number) =>
+  Math.min(Math.max(currentZoom + 0.75, 10), 13);
+
+const getDrilldownZoom = (currentZoom: number) =>
+  Math.min(Math.max(currentZoom + 1, 11), 14);
+
+const pointPopupHtml = (properties: {
+  title?: unknown;
+  category?: unknown;
+  description?: unknown;
+}) => `<div style="font-family: var(--font-body); color: #0c1a24;">
+  <div style="font-weight: 600; margin-bottom: 6px;">${escapeHtml(String(properties.title ?? ""))}</div>
+  <div style="font-size: 12px; opacity: 0.75;">${escapeHtml(String(properties.category ?? ""))}</div>
+  <div style="font-size: 12px; margin-top: 6px;">${escapeHtml(String(properties.description ?? ""))}</div>
+</div>`;
+
+const toGeoJson = (sightings: SightingCard[]) => {
+  const groups = new Map<string, SightingCard[]>();
+
+  for (const sighting of sightings) {
+    const key = coordinateKey(sighting.location);
+    groups.set(key, [...(groups.get(key) ?? []), sighting]);
+  }
+
+  const stackMetadata = new Map<
+    string,
+    {
+      stackIndex: number;
+      stackCount: number;
+      displayLng: number;
+      displayLat: number;
+    }
+  >();
+
+  for (const group of groups.values()) {
+    const sorted = [...group].sort((a, b) => {
+      const importanceDelta =
+        importanceRank[b.importance] - importanceRank[a.importance];
+      if (importanceDelta !== 0) return importanceDelta;
+      return (b.hotScore ?? b.score ?? 0) - (a.hotScore ?? a.score ?? 0);
+    });
+
+    sorted.forEach((sighting, index) => {
+      const offset = getStackOffset(index, sorted.length);
+      stackMetadata.set(sighting.id, {
+        stackIndex: index,
+        stackCount: sorted.length,
+        displayLng:
+          sighting.location.lng +
+          metersToLng(offset.xMeters, sighting.location.lat),
+        displayLat: sighting.location.lat + metersToLat(offset.yMeters),
+      });
+    });
+  }
+
+  return {
+    type: "FeatureCollection" as const,
+    features: sightings.map((sighting) => {
+      const stack = stackMetadata.get(sighting.id) ?? {
+        stackIndex: 0,
+        stackCount: 1,
+        displayLng: sighting.location.lng,
+        displayLat: sighting.location.lat,
+      };
+
+      return {
+        type: "Feature" as const,
+        properties: {
+          id: sighting.id,
+          title: sighting.title,
+          category: sighting.category,
+          importance: sighting.importance,
+          status: sighting.status,
+          description: sighting.description,
+          score: sighting.score ?? 0,
+          hotScore: sighting.hotScore ?? 0,
+          stackIndex: stack.stackIndex,
+          stackCount: stack.stackCount,
+          stackLabel:
+            stack.stackCount > 1
+              ? `${stack.stackIndex + 1}/${stack.stackCount}`
+              : "",
+        },
+        geometry: {
+          type: "Point" as const,
+          coordinates: [stack.displayLng, stack.displayLat],
+        },
+      };
+    }),
+  };
+};
 
 export const SightingsMap = ({
   sightings,
@@ -98,6 +220,7 @@ export const SightingsMap = ({
       setLayerVisibility("cluster-count", "none");
       setLayerVisibility("unclustered-point-glow", "none");
       setLayerVisibility("unclustered-point", "none");
+      setLayerVisibility("stack-count-label", "none");
       // Show heatmap
       setLayerVisibility("sightings-heatmap", "visible");
     } else {
@@ -106,10 +229,150 @@ export const SightingsMap = ({
       setLayerVisibility("cluster-count", "visible");
       setLayerVisibility("unclustered-point-glow", "visible");
       setLayerVisibility("unclustered-point", "visible");
+      setLayerVisibility("stack-count-label", "visible");
       // Hide heatmap
       setLayerVisibility("sightings-heatmap", "none");
     }
   };
+
+  const showClusterPreview = useCallback(
+    async (
+      map: maplibregl.Map,
+      clusterId: number,
+      coordinates: [number, number]
+    ) => {
+      const source = map.getSource("sightings") as GeoJSONSource & {
+        getClusterLeaves?: (
+          clusterId: number,
+          limit: number,
+          offset: number
+        ) => Promise<Array<{ properties?: Record<string, unknown> }>>;
+      };
+
+      const leaves = source.getClusterLeaves
+        ? await source.getClusterLeaves(clusterId, 12, 0)
+        : [];
+
+      const items = leaves
+        .map((leaf) => {
+          const properties = leaf.properties ?? {};
+          const title = escapeHtml(String(properties.title ?? "Untitled"));
+          const category = escapeHtml(String(properties.category ?? ""));
+          const importance = escapeHtml(String(properties.importance ?? ""));
+
+          return `<li style="padding: 7px 0; border-top: 1px solid rgba(12,26,36,.1);">
+          <div style="font-weight: 650; line-height: 1.25;">${title}</div>
+          <div style="font-size: 11px; opacity: .72; margin-top: 2px;">${category} &middot; ${importance}</div>
+        </li>`;
+        })
+        .join("");
+
+      const countLabel =
+        leaves.length >= 12 ? "Showing nearby items" : "Stacked nearby items";
+
+      popupRef.current?.remove();
+      const maplibre = await loadMaplibre();
+      popupRef.current = new maplibre.Popup({
+        closeButton: true,
+        maxWidth: "320px",
+        offset: 16,
+      })
+        .setLngLat(coordinates)
+        .setHTML(
+          `<div style="font-family: var(--font-body); color: #0c1a24; min-width: 240px;">
+          <div style="font-size: 12px; font-weight: 750; text-transform: uppercase; letter-spacing: .08em; opacity: .65;">${countLabel}</div>
+          <ol style="margin: 8px 0 0; padding: 0; list-style: none;">${items}</ol>
+        </div>`
+        )
+        .addTo(map);
+    },
+    []
+  );
+
+  const handleClusterClick = useCallback(
+    async (map: maplibregl.Map, event: maplibregl.MapLayerMouseEvent) => {
+      const features = map.queryRenderedFeatures(event.point, {
+        layers: ["clusters"],
+      });
+      const clusterId = features[0]?.properties?.cluster_id;
+      if (
+        typeof clusterId !== "number" ||
+        !features[0]?.geometry ||
+        features[0].geometry.type !== "Point"
+      ) {
+        return;
+      }
+
+      const coordinates = features[0].geometry.coordinates as [number, number];
+      const source = map.getSource("sightings") as GeoJSONSource;
+
+      try {
+        const zoom = await source.getClusterExpansionZoom(clusterId);
+        const currentZoom = map.getZoom();
+        if (zoom >= 14 || zoom <= currentZoom + 0.25) {
+          await showClusterPreview(map, clusterId, coordinates);
+          return;
+        }
+
+        map.easeTo({
+          center: coordinates,
+          zoom: Math.min(zoom ?? currentZoom + 1, currentZoom + 1.25, 13),
+          duration: 450,
+          essential: true,
+        });
+      } catch (err) {
+        console.error("Failed to inspect cluster:", err);
+      }
+    },
+    [showClusterPreview]
+  );
+
+  const showSightingPopup = useCallback(
+    async (
+      map: maplibregl.Map,
+      coordinates: [number, number],
+      properties: { title?: unknown; category?: unknown; description?: unknown }
+    ) => {
+      const maplibreModule = await loadMaplibre();
+      popupRef.current?.remove();
+      popupRef.current = new maplibreModule.Popup({
+        closeButton: false,
+        offset: 12,
+      })
+        .setLngLat(coordinates)
+        .setHTML(pointPopupHtml(properties))
+        .addTo(map);
+    },
+    []
+  );
+
+  const handlePointClick = useCallback(
+    async (map: maplibregl.Map, event: maplibregl.MapLayerMouseEvent) => {
+      const feature = event.features?.[0];
+      if (!feature || !event.lngLat) {
+        return;
+      }
+
+      const coordinates =
+        feature.geometry?.type === "Point"
+          ? (feature.geometry.coordinates as [number, number])
+          : ([event.lngLat.lng, event.lngLat.lat] as [number, number]);
+
+      await showSightingPopup(
+        map,
+        coordinates,
+        feature.properties as Record<string, unknown>
+      );
+
+      map.easeTo({
+        center: coordinates,
+        zoom: getFocusZoom(map.getZoom()),
+        duration: 350,
+        essential: true,
+      });
+    },
+    [showSightingPopup]
+  );
 
   useEffect(() => {
     if (!containerRef.current || mapRef.current) {
@@ -149,6 +412,19 @@ export const SightingsMap = ({
         }),
         "bottom-left"
       );
+
+      const onClusterClick = (event: maplibregl.MapLayerMouseEvent) => {
+        void handleClusterClick(map, event);
+      };
+      const onPointClick = (event: maplibregl.MapLayerMouseEvent) => {
+        void handlePointClick(map, event);
+      };
+      const attachInteractionHandlers = () => {
+        map.off("click", "clusters", onClusterClick);
+        map.off("click", "unclustered-point", onPointClick);
+        map.on("click", "clusters", onClusterClick);
+        map.on("click", "unclustered-point", onPointClick);
+      };
 
       map.on("load", () => {
         console.log("Map loaded, mapRef will be set");
@@ -304,7 +580,17 @@ export const SightingsMap = ({
             visibility: "visible",
           },
           paint: {
-            "circle-radius": 16,
+            "circle-radius": [
+              "interpolate",
+              ["linear"],
+              ["get", "stackCount"],
+              1,
+              16,
+              8,
+              19,
+              24,
+              23,
+            ],
             "circle-color": "#f2c94c",
             "circle-opacity": 0.2,
           },
@@ -320,7 +606,17 @@ export const SightingsMap = ({
             visibility: "visible",
           },
           paint: {
-            "circle-radius": 7,
+            "circle-radius": [
+              "interpolate",
+              ["linear"],
+              ["get", "stackCount"],
+              1,
+              7,
+              8,
+              9,
+              24,
+              11,
+            ],
             "circle-color": [
               "match",
               ["get", "importance"],
@@ -337,70 +633,29 @@ export const SightingsMap = ({
           },
         });
 
-        // Click handler for clusters - zoom in
-        map.on("click", "clusters", async (e) => {
-          const features = map.queryRenderedFeatures(e.point, {
-            layers: ["clusters"],
-          });
-          const clusterId = features[0]?.properties?.cluster_id;
-          if (
-            !clusterId ||
-            !features[0]?.geometry ||
-            features[0].geometry.type !== "Point"
-          )
-            return;
-
-          const source = map.getSource("sightings") as GeoJSONSource;
-          try {
-            const zoom = await source.getClusterExpansionZoom(clusterId);
-            map.easeTo({
-              center: features[0].geometry.coordinates as [number, number],
-              zoom: zoom ?? map.getZoom() + 2,
-              duration: 500,
-            });
-          } catch (err) {
-            console.error("Failed to get cluster expansion zoom:", err);
-          }
+        map.addLayer({
+          id: "stack-count-label",
+          type: "symbol",
+          source: "sightings",
+          filter: [
+            "all",
+            ["!", ["has", "point_count"]],
+            [">", ["get", "stackCount"], 1],
+          ],
+          layout: {
+            visibility: "visible",
+            "text-field": "{stackLabel}",
+            "text-font": ["Noto Sans Regular"],
+            "text-size": 10,
+            "text-offset": [0, 0.05],
+            "text-allow-overlap": true,
+          },
+          paint: {
+            "text-color": "#ffffff",
+          },
         });
 
-        // Click handler for individual points (replaced old handler)
-        map.on("click", "unclustered-point", (event) => {
-          const feature = event.features?.[0];
-          if (!feature || !event.lngLat) {
-            return;
-          }
-          const properties = feature.properties as Record<string, string>;
-
-          // Save lngLat before setTimeout
-          const lngLat = { lng: event.lngLat.lng, lat: event.lngLat.lat };
-
-          // Zoom to the sighting with smooth animation
-          map.flyTo({
-            center: [lngLat.lng, lngLat.lat],
-            zoom: 15,
-            duration: 1000,
-            essential: true,
-          });
-
-          // Show popup after a brief delay to let the zoom settle
-          setTimeout(async () => {
-            const maplibreModule = await loadMaplibre();
-            popupRef.current?.remove();
-            popupRef.current = new maplibreModule.Popup({
-              closeButton: false,
-              offset: 12,
-            })
-              .setLngLat([lngLat.lng, lngLat.lat])
-              .setHTML(
-                `<div style="font-family: var(--font-body); color: #0c1a24;">
-                  <div style="font-weight: 600; margin-bottom: 6px;">${properties.title}</div>
-                  <div style="font-size: 12px; opacity: 0.75;">${properties.category}</div>
-                  <div style="font-size: 12px; margin-top: 6px;">${properties.description}</div>
-                </div>`
-              )
-              .addTo(map);
-          }, 500);
-        });
+        attachInteractionHandlers();
 
         // Cursor handlers for clusters
         map.on("mouseenter", "clusters", () => {
@@ -454,6 +709,19 @@ export const SightingsMap = ({
     const center = map.getCenter();
     const zoom = map.getZoom();
     const pitch = map.getPitch();
+
+    const onClusterClick = (event: maplibregl.MapLayerMouseEvent) => {
+      void handleClusterClick(map, event);
+    };
+    const onPointClick = (event: maplibregl.MapLayerMouseEvent) => {
+      void handlePointClick(map, event);
+    };
+    const attachInteractionHandlers = () => {
+      map.off("click", "clusters", onClusterClick);
+      map.off("click", "unclustered-point", onPointClick);
+      map.on("click", "clusters", onClusterClick);
+      map.on("click", "unclustered-point", onPointClick);
+    };
 
     map.setStyle(mapStyleUrl);
 
@@ -599,7 +867,17 @@ export const SightingsMap = ({
           filter: ["!", ["has", "point_count"]],
           layout: { visibility: showHeatmap ? "none" : "visible" },
           paint: {
-            "circle-radius": 16,
+            "circle-radius": [
+              "interpolate",
+              ["linear"],
+              ["get", "stackCount"],
+              1,
+              16,
+              8,
+              19,
+              24,
+              23,
+            ],
             "circle-color": "#f2c94c",
             "circle-opacity": 0.2,
           },
@@ -612,7 +890,17 @@ export const SightingsMap = ({
           filter: ["!", ["has", "point_count"]],
           layout: { visibility: showHeatmap ? "none" : "visible" },
           paint: {
-            "circle-radius": 7,
+            "circle-radius": [
+              "interpolate",
+              ["linear"],
+              ["get", "stackCount"],
+              1,
+              7,
+              8,
+              9,
+              24,
+              11,
+            ],
             "circle-color": [
               "match",
               ["get", "importance"],
@@ -629,65 +917,29 @@ export const SightingsMap = ({
           },
         });
 
-        // Re-add click handlers for clusters
-        map.on("click", "clusters", async (e) => {
-          const features = map.queryRenderedFeatures(e.point, {
-            layers: ["clusters"],
-          });
-          const clusterId = features[0]?.properties?.cluster_id;
-          if (
-            !clusterId ||
-            !features[0]?.geometry ||
-            features[0].geometry.type !== "Point"
-          )
-            return;
-
-          const source = map.getSource("sightings") as GeoJSONSource;
-          try {
-            const zoom = await source.getClusterExpansionZoom(clusterId);
-            map.easeTo({
-              center: features[0].geometry.coordinates as [number, number],
-              zoom: zoom ?? map.getZoom() + 2,
-              duration: 500,
-            });
-          } catch (err) {
-            console.error("Failed to get cluster expansion zoom:", err);
-          }
+        map.addLayer({
+          id: "stack-count-label",
+          type: "symbol",
+          source: "sightings",
+          filter: [
+            "all",
+            ["!", ["has", "point_count"]],
+            [">", ["get", "stackCount"], 1],
+          ],
+          layout: {
+            visibility: showHeatmap ? "none" : "visible",
+            "text-field": "{stackLabel}",
+            "text-font": ["Noto Sans Regular"],
+            "text-size": 10,
+            "text-offset": [0, 0.05],
+            "text-allow-overlap": true,
+          },
+          paint: {
+            "text-color": "#ffffff",
+          },
         });
 
-        // Re-add click handlers for individual points
-        map.on("click", "unclustered-point", async (event) => {
-          const feature = event.features?.[0];
-          if (!feature || !event.lngLat) return;
-
-          const properties = feature.properties as Record<string, string>;
-          const lngLat = { lng: event.lngLat.lng, lat: event.lngLat.lat };
-
-          map.flyTo({
-            center: [lngLat.lng, lngLat.lat],
-            zoom: 15,
-            duration: 1000,
-            essential: true,
-          });
-
-          setTimeout(async () => {
-            const maplibreModule = await loadMaplibre();
-            popupRef.current?.remove();
-            popupRef.current = new maplibreModule.Popup({
-              closeButton: false,
-              offset: 12,
-            })
-              .setLngLat([lngLat.lng, lngLat.lat])
-              .setHTML(
-                `<div style="font-family: var(--font-body); color: #0c1a24;">
-                  <div style="font-weight: 600; margin-bottom: 6px;">${properties.title}</div>
-                  <div style="font-size: 12px; opacity: 0.75;">${properties.category}</div>
-                  <div style="font-size: 12px; margin-top: 6px;">${properties.description}</div>
-                </div>`
-              )
-              .addTo(map);
-          }, 500);
-        });
+        attachInteractionHandlers();
 
         // Re-add cursor handlers
         map.on(
@@ -712,7 +964,7 @@ export const SightingsMap = ({
         );
       }
     });
-  }, [effectiveTheme, showHeatmap]);
+  }, [effectiveTheme, handleClusterClick, handlePointClick, showHeatmap]);
 
   useEffect(() => {
     const map = mapRef.current;
@@ -862,40 +1114,28 @@ export const SightingsMap = ({
     }
 
     const { lat, lng } = selectedSighting.location;
+    const selectedFeature = geoJson.features.find(
+      (feature) => feature.properties.id === selectedSighting.id
+    );
+    const focusCoordinates =
+      selectedFeature?.geometry.type === "Point"
+        ? (selectedFeature.geometry.coordinates as [number, number])
+        : ([lng, lat] as [number, number]);
 
-    // Zoom to the sighting with smooth animation
     try {
-      map.flyTo({
-        center: [lng, lat],
-        zoom: 15,
-        duration: 1000,
+      map.easeTo({
+        center: focusCoordinates,
+        zoom: getDrilldownZoom(map.getZoom()),
+        duration: 500,
         essential: true,
       });
     } catch (error) {
-      console.error("Error flying to sighting:", error);
+      console.error("Error focusing sighting:", error);
       return;
     }
 
-    // Import maplibre dynamically to show popup
-    void loadMaplibre().then((maplibre) => {
-      setTimeout(() => {
-        popupRef.current?.remove();
-        popupRef.current = new maplibre.Popup({
-          closeButton: false,
-          offset: 12,
-        })
-          .setLngLat([lng, lat])
-          .setHTML(
-            `<div style="font-family: var(--font-body); color: #0c1a24;">
-              <div style="font-weight: 600; margin-bottom: 6px;">${selectedSighting.title}</div>
-              <div style="font-size: 12px; opacity: 0.75;">${selectedSighting.category}</div>
-              <div style="font-size: 12px; margin-top: 6px;">${selectedSighting.description}</div>
-            </div>`
-          )
-          .addTo(map);
-      }, 500);
-    });
-  }, [selectedSighting]);
+    void showSightingPopup(map, focusCoordinates, selectedSighting);
+  }, [geoJson, selectedSighting, showSightingPopup]);
 
   // Handle report location marker - now depends on mapRef
   useEffect(() => {
