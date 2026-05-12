@@ -42,8 +42,9 @@ const importanceRank = {
 } as const;
 
 const CLUSTER_MAX_ZOOM = 17;
-const CLUSTER_RADIUS_PX = 120;
+const CLUSTER_RADIUS_PX = 220;
 const CLUSTER_PREVIEW_ZOOM = 15;
+const POINT_DETAIL_MIN_ZOOM = 7;
 const STACK_LABEL_MIN_ZOOM = 12;
 
 const coordinateKey = (location: SightingCard["location"]) =>
@@ -615,6 +616,7 @@ export const SightingsMap = ({
           type: "circle",
           source: "sightings",
           filter: ["!", ["has", "point_count"]],
+          minzoom: POINT_DETAIL_MIN_ZOOM,
           layout: {
             visibility: "visible",
           },
@@ -641,6 +643,7 @@ export const SightingsMap = ({
           type: "circle",
           source: "sightings",
           filter: ["!", ["has", "point_count"]],
+          minzoom: POINT_DETAIL_MIN_ZOOM,
           layout: {
             visibility: "visible",
           },
@@ -938,6 +941,7 @@ export const SightingsMap = ({
           type: "circle",
           source: "sightings",
           filter: ["!", ["has", "point_count"]],
+          minzoom: POINT_DETAIL_MIN_ZOOM,
           layout: { visibility: showHeatmap ? "none" : "visible" },
           paint: {
             "circle-radius": [
@@ -961,6 +965,7 @@ export const SightingsMap = ({
           type: "circle",
           source: "sightings",
           filter: ["!", ["has", "point_count"]],
+          minzoom: POINT_DETAIL_MIN_ZOOM,
           layout: { visibility: showHeatmap ? "none" : "visible" },
           paint: {
             "circle-radius": [
