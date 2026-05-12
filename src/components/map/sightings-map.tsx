@@ -41,6 +41,11 @@ const importanceRank = {
   low: 1,
 } as const;
 
+const CLUSTER_MAX_ZOOM = 15;
+const CLUSTER_RADIUS_PX = 90;
+const CLUSTER_PREVIEW_ZOOM = 15;
+const STACK_LABEL_MIN_ZOOM = 12;
+
 const coordinateKey = (location: SightingCard["location"]) =>
   `${location.lat.toFixed(4)}:${location.lng.toFixed(4)}`;
 
@@ -309,14 +314,18 @@ export const SightingsMap = ({
       try {
         const zoom = await source.getClusterExpansionZoom(clusterId);
         const currentZoom = map.getZoom();
-        if (zoom >= 14 || zoom <= currentZoom + 0.25) {
+        if (zoom >= CLUSTER_PREVIEW_ZOOM || zoom <= currentZoom + 0.25) {
           await showClusterPreview(map, clusterId, coordinates);
           return;
         }
 
         map.easeTo({
           center: coordinates,
-          zoom: Math.min(zoom ?? currentZoom + 1, currentZoom + 1.25, 13),
+          zoom: Math.min(
+            zoom ?? currentZoom + 1,
+            currentZoom + 1.25,
+            CLUSTER_PREVIEW_ZOOM - 1
+          ),
           duration: 450,
           essential: true,
         });
@@ -434,8 +443,8 @@ export const SightingsMap = ({
           type: "geojson",
           data: geoJsonRef.current,
           cluster: true,
-          clusterMaxZoom: 14, // Max zoom to cluster points on
-          clusterRadius: 50, // Radius of each cluster when clustering points (in pixels)
+          clusterMaxZoom: CLUSTER_MAX_ZOOM,
+          clusterRadius: CLUSTER_RADIUS_PX,
         });
 
         // Heatmap layer (hidden by default) - very subtle like light clouds
@@ -650,6 +659,7 @@ export const SightingsMap = ({
             "text-offset": [0, 0.05],
             "text-allow-overlap": true,
           },
+          minzoom: STACK_LABEL_MIN_ZOOM,
           paint: {
             "text-color": "#ffffff",
           },
@@ -738,8 +748,8 @@ export const SightingsMap = ({
           type: "geojson",
           data: geoJsonRef.current,
           cluster: true,
-          clusterMaxZoom: 14,
-          clusterRadius: 50,
+          clusterMaxZoom: CLUSTER_MAX_ZOOM,
+          clusterRadius: CLUSTER_RADIUS_PX,
         });
 
         // Add all layers (heatmap, clusters, unclustered points)
@@ -934,6 +944,7 @@ export const SightingsMap = ({
             "text-offset": [0, 0.05],
             "text-allow-overlap": true,
           },
+          minzoom: STACK_LABEL_MIN_ZOOM,
           paint: {
             "text-color": "#ffffff",
           },
