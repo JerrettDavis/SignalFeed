@@ -7,7 +7,7 @@ export type SightingRow = {
   id: string;
   type_id: string;
   category_id: string;
-  location: { lat: number; lng: number };
+  location: { lat: number; lng: number } | string;
   description: string;
   details: string | null;
   importance: string;
@@ -39,11 +39,38 @@ const toIso = (value: Date | string | null | undefined, fallback?: string) => {
     : new Date(value).toISOString();
 };
 
+const parseLocation = (
+  value: SightingRow["location"]
+): { lat: number; lng: number } => {
+  const location =
+    typeof value === "string"
+      ? (() => {
+          try {
+            return JSON.parse(value) as unknown;
+          } catch {
+            return null;
+          }
+        })()
+      : value;
+
+  if (
+    location &&
+    typeof location === "object" &&
+    !Array.isArray(location) &&
+    typeof (location as { lat?: unknown }).lat === "number" &&
+    typeof (location as { lng?: unknown }).lng === "number"
+  ) {
+    return location as { lat: number; lng: number };
+  }
+
+  return { lat: 0, lng: 0 };
+};
+
 export const mapSignalSightingRow = (row: SightingRow): Sighting => ({
   id: row.id as SightingId,
   typeId: row.type_id as Sighting["typeId"],
   categoryId: row.category_id as Sighting["categoryId"],
-  location: row.location,
+  location: parseLocation(row.location),
   description: row.description,
   details: row.details || undefined,
   importance: row.importance as Sighting["importance"],

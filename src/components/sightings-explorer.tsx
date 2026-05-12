@@ -13,15 +13,26 @@ type ApiResponse<T> = {
   data: T;
 };
 
+const LocationSchema = zod.preprocess(
+  (value) => {
+    if (typeof value !== "string") {
+      return value;
+    }
+    try {
+      return JSON.parse(value) as unknown;
+    } catch {
+      return value;
+    }
+  },
+  zod.object({ lat: zod.number(), lng: zod.number() })
+);
+
 const MapSightingSchema = zod
   .object({
     id: zod.string(),
     typeId: zod.string(),
     categoryId: zod.string(),
-    location: zod.object({
-      lat: zod.number(),
-      lng: zod.number(),
-    }),
+    location: LocationSchema,
     description: zod.string(),
     importance: zod
       .enum(["low", "normal", "high", "critical"])
