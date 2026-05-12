@@ -58,11 +58,15 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
       10
     );
 
-    // Fetch sightings with a single JOIN query instead of N+1 queries
-    const sightings =
-      associationCount > 0
-        ? (
-            await sql<SightingRow[]>`
+    const matchingCount = await countSightingsMatchingSignal(sql, signal);
+    const useAssociations =
+      associationCount > 0 && associationCount >= matchingCount;
+
+    // Fetch sightings with a single JOIN query when explicit associations are current.
+    // Otherwise resolve the signal as a live layer from its taxonomy conditions.
+    const sightings = useAssociations
+      ? (
+          await sql<SightingRow[]>`
               SELECT s.*
               FROM sightings s
               INNER JOIN signal_sightings ss ON s.id = ss.sighting_id
@@ -74,13 +78,10 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
               LIMIT ${limit}
               OFFSET ${offset}
             `
-          ).map(mapSignalSightingRow)
-        : await listSightingsMatchingSignal(sql, signal, { limit, offset });
+        ).map(mapSignalSightingRow)
+      : await listSightingsMatchingSignal(sql, signal, { limit, offset });
 
-    const total =
-      associationCount > 0
-        ? associationCount
-        : await countSightingsMatchingSignal(sql, signal);
+    const total = useAssociations ? associationCount : matchingCount;
 
     console.log(
       `[Signal Sightings] Fetched ${sightings.length} sightings for signal ${signalId} (total: ${total})`
