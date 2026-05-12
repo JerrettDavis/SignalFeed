@@ -36,6 +36,16 @@ const resolveStoreType = (): StoreType => {
   if (fromEnv === "memory" || fromEnv === "file" || fromEnv === "postgres") {
     return fromEnv;
   }
+  const hasPostgresUrl = Boolean(
+    process.env.SIGNALFEED_DATABASE_URL ||
+    process.env.SIGHTSIGNAL_DATABASE_URL ||
+    process.env.DATABASE_URL ||
+    process.env.POSTGRES_URL ||
+    process.env.POSTGRES_PRISMA_URL
+  );
+  if (hasPostgresUrl) {
+    return "postgres";
+  }
   return process.env.NODE_ENV === "production" ? "memory" : "file";
 };
 
