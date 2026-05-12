@@ -8,6 +8,8 @@ import {
 } from "@/adapters/repositories/repository-factory";
 import { systemClock } from "@/adapters/clock/system-clock";
 import { cookies } from "next/headers";
+import { seedSignals } from "@/data/seed";
+import type { SignalId } from "@/domain/signals/signal";
 
 const ANONYMOUS_VIEWER_COOKIE = "anonymous_signal_viewer_id";
 const ANONYMOUS_VIEWER_MAX_AGE_SECONDS = 60 * 60 * 24 * 365;
@@ -40,6 +42,53 @@ const getAnonymousViewerId = (
   };
 };
 
+const buildAnonymousViewResponse = async (
+  signalId: string,
+  anonymousViewer: { userId: string; isNew: boolean }
+) => {
+  const signalRepository = getSignalRepository();
+  const signal =
+    (await signalRepository.getById(signalId as SignalId)) ??
+    seedSignals.find((seedSignal) => seedSignal.id === signalId);
+
+  if (!signal) {
+    return NextResponse.json(
+      {
+        error: "Signal not found.",
+        code: "signal.not_found",
+      },
+      { status: 404 }
+    );
+  }
+
+  try {
+    await signalRepository.incrementViewCount(signalId as SignalId);
+  } catch (error) {
+    console.warn("[Signal View] Anonymous view count update failed:", error);
+  }
+
+  const response = NextResponse.json(
+    {
+      success: true,
+      viewRecorded: true,
+      activeViewers: signal.analytics.activeViewers ?? 0,
+    },
+    { status: 200 }
+  );
+
+  if (anonymousViewer.isNew) {
+    response.cookies.set(ANONYMOUS_VIEWER_COOKIE, anonymousViewer.userId, {
+      httpOnly: true,
+      sameSite: "lax",
+      secure: process.env.NODE_ENV === "production",
+      maxAge: ANONYMOUS_VIEWER_MAX_AGE_SECONDS,
+      path: "/",
+    });
+  }
+
+  return response;
+};
+
 /**
  * POST /api/signals/:id/view
  *
@@ -57,8 +106,11 @@ export async function POST(
     const anonymousViewer = authenticatedUserId
       ? null
       : getAnonymousViewerId(cookieStore);
-    const userId = authenticatedUserId ?? anonymousViewer?.userId;
     const { id: signalId } = await params;
+
+    if (!authenticatedUserId && anonymousViewer) {
+      return buildAnonymousViewResponse(signalId, anonymousViewer);
+    }
 
     // Build use case
     const trackSignalView = buildTrackSignalView({
@@ -70,7 +122,7 @@ export async function POST(
     });
 
     // Execute use case
-    const result = await trackSignalView(signalId, userId);
+    const result = await trackSignalView(signalId, authenticatedUserId);
 
     if (!result.ok) {
       const status = result.error.code === "signal.not_found" ? 404 : 400;
@@ -91,16 +143,6 @@ export async function POST(
       },
       { status: 200 }
     );
-
-    if (anonymousViewer?.isNew) {
-      response.cookies.set(ANONYMOUS_VIEWER_COOKIE, anonymousViewer.userId, {
-        httpOnly: true,
-        sameSite: "lax",
-        secure: process.env.NODE_ENV === "production",
-        maxAge: ANONYMOUS_VIEWER_MAX_AGE_SECONDS,
-        path: "/",
-      });
-    }
 
     return response;
   } catch (error) {

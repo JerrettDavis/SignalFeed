@@ -46,11 +46,6 @@ export default function RootLayout({
       suppressHydrationWarning
     >
       <head>
-        <link
-          rel="manifest"
-          href="/manifest.json"
-          crossOrigin="use-credentials"
-        />
         <link rel="icon" href="/favicon.png" type="image/png" />
         <link rel="apple-touch-icon" href="/icon-192.png" />
         <meta name="theme-color" content="#0078ff" />
@@ -60,12 +55,31 @@ export default function RootLayout({
         <script
           dangerouslySetInnerHTML={{
             __html: `
-            if ('serviceWorker' in navigator) {
+            const signalFeedPwaHost =
+              location.hostname === 'www.signalfeed.app' ||
+              location.hostname === 'signalfeed.app' ||
+              location.hostname === 'localhost';
+
+            if (signalFeedPwaHost) {
+              const manifest = document.createElement('link');
+              manifest.rel = 'manifest';
+              manifest.href = '/manifest.json';
+              manifest.crossOrigin = 'use-credentials';
+              document.head.appendChild(manifest);
+            }
+
+            if ('serviceWorker' in navigator && signalFeedPwaHost) {
               window.addEventListener('load', () => {
                 navigator.serviceWorker.register('/sw.js').then(
                   registration => console.log('[SW] Registered:', registration.scope),
                   error => console.error('[SW] Registration failed:', error)
                 );
+              });
+            } else if ('serviceWorker' in navigator) {
+              window.addEventListener('load', () => {
+                navigator.serviceWorker.getRegistrations().then(registrations => {
+                  registrations.forEach(registration => registration.unregister());
+                });
               });
             }
           `,
