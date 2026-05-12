@@ -2,8 +2,10 @@ import { getSignalRepository } from "@/adapters/repositories/repository-factory"
 import { getSql } from "@/adapters/repositories/postgres/client";
 import {
   associateFeedSightingsWithLayerSignals,
+  FEED_LAYER_SIGNAL_IDS,
   ensureFeedLayerSignals,
 } from "@/adapters/repositories/postgres/feed-layer-signals";
+import { seedSignals } from "@/data/seed";
 import { jsonOk } from "@/shared/http";
 
 export const runtime = "nodejs";
@@ -26,9 +28,16 @@ export const GET = async (_request: Request) => {
 
   // Get all active signals (no auth required for public signals)
   const signals = await signalRepository.list({ isActive: true });
+  const seenSignalIds = new Set(signals.map((signal) => signal.id));
+  const missingLayerSignals = seedSignals.filter(
+    (signal) =>
+      FEED_LAYER_SIGNAL_IDS.includes(
+        signal.id as (typeof FEED_LAYER_SIGNAL_IDS)[number]
+      ) && !seenSignalIds.has(signal.id)
+  );
 
   // TODO: Filter by visibility when that property is added to the domain model
   // For now, return all active signals
 
-  return jsonOk({ data: signals });
+  return jsonOk({ data: [...missingLayerSignals, ...signals] });
 };
