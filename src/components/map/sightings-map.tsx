@@ -41,71 +41,15 @@ const importanceRank = {
   low: 1,
 } as const;
 
-const CLUSTER_MAX_ZOOM = 17;
-const CLUSTER_RADIUS_PX = 180;
+const POINT_SOURCE_ID = "sighting-points";
+const CLUSTER_SOURCE_ID = "sighting-clusters";
+const CLUSTER_MAX_ZOOM = 16;
+const CLUSTER_RADIUS_PX = 130;
 const CLUSTER_PREVIEW_ZOOM = 15;
-const NATIVE_CLUSTER_MIN_ZOOM = 8;
-const POINT_DETAIL_MIN_ZOOM = 11;
 const STACK_LABEL_MIN_ZOOM = 12;
-const OVERVIEW_CLUSTER_TIERS = [
-  {
-    id: "broad",
-    minZoom: 0,
-    maxZoom: 4,
-    lngDegrees: 18,
-    latDegrees: 12,
-  },
-  {
-    id: "regional",
-    minZoom: 4,
-    maxZoom: 6.5,
-    lngDegrees: 9,
-    latDegrees: 6,
-  },
-  {
-    id: "local",
-    minZoom: 6.5,
-    maxZoom: 9,
-    lngDegrees: 4.5,
-    latDegrees: 3,
-  },
-] as const;
 
 const coordinateKey = (location: SightingCard["location"]) =>
   `${location.lat.toFixed(4)}:${location.lng.toFixed(4)}`;
-
-const metersToLng = (meters: number, lat: number) => {
-  const cosLat = Math.cos((lat * Math.PI) / 180);
-  return meters / (111_320 * Math.max(cosLat, 0.1));
-};
-
-const metersToLat = (meters: number) => meters / 110_540;
-
-const getStackOffset = (index: number, stackCount: number) => {
-  if (stackCount <= 1) {
-    return { xMeters: 0, yMeters: 0 };
-  }
-
-  let remaining = index;
-  let ring = 0;
-  let ringCapacity = 8;
-
-  while (remaining >= ringCapacity) {
-    remaining -= ringCapacity;
-    ring += 1;
-    ringCapacity = 8 + ring * 6;
-  }
-
-  const remainingAfterPreviousRings = stackCount - (index - remaining);
-  const countOnRing = Math.min(ringCapacity, remainingAfterPreviousRings);
-  const angle = (remaining / countOnRing) * Math.PI * 2 + ring * 0.43;
-  const radiusMeters = Math.min(24 + ring * 18, 240);
-
-  return {
-    xMeters: Math.cos(angle) * radiusMeters,
-    yMeters: Math.sin(angle) * radiusMeters,
-  };
-};
 
 const escapeHtml = (value: string) =>
   value
@@ -144,8 +88,6 @@ const toGeoJson = (sightings: SightingCard[]) => {
     {
       stackIndex: number;
       stackCount: number;
-      displayLng: number;
-      displayLat: number;
     }
   >();
 
@@ -158,14 +100,9 @@ const toGeoJson = (sightings: SightingCard[]) => {
     });
 
     sorted.forEach((sighting, index) => {
-      const offset = getStackOffset(index, sorted.length);
       stackMetadata.set(sighting.id, {
         stackIndex: index,
         stackCount: sorted.length,
-        displayLng:
-          sighting.location.lng +
-          metersToLng(offset.xMeters, sighting.location.lat),
-        displayLat: sighting.location.lat + metersToLat(offset.yMeters),
       });
     });
   }
@@ -176,8 +113,6 @@ const toGeoJson = (sightings: SightingCard[]) => {
       const stack = stackMetadata.get(sighting.id) ?? {
         stackIndex: 0,
         stackCount: 1,
-        displayLng: sighting.location.lng,
-        displayLat: sighting.location.lat,
       };
 
       return {
@@ -194,89 +129,16 @@ const toGeoJson = (sightings: SightingCard[]) => {
           stackIndex: stack.stackIndex,
           stackCount: stack.stackCount,
           stackLabel:
-            stack.stackCount > 1
-              ? `${stack.stackIndex + 1}/${stack.stackCount}`
+            stack.stackCount > 1 && stack.stackIndex === 0
+              ? `${stack.stackCount}`
               : "",
         },
         geometry: {
           type: "Point" as const,
-          coordinates: [stack.displayLng, stack.displayLat],
+          coordinates: [sighting.location.lng, sighting.location.lat],
         },
       };
     }),
-  };
-};
-
-type OverviewClusterTier = (typeof OVERVIEW_CLUSTER_TIERS)[number];
-
-const overviewSourceId = (tier: OverviewClusterTier) =>
-  `sighting-overview-clusters-${tier.id}`;
-
-const overviewCircleLayerId = (tier: OverviewClusterTier) =>
-  `overview-clusters-${tier.id}`;
-
-const overviewCountLayerId = (tier: OverviewClusterTier) =>
-  `overview-cluster-count-${tier.id}`;
-
-const toOverviewGeoJson = (
-  sightings: SightingCard[],
-  tier: OverviewClusterTier
-) => {
-  const groups = new Map<
-    string,
-    {
-      count: number;
-      latTotal: number;
-      lngTotal: number;
-      highestImportance: SightingCard["importance"];
-    }
-  >();
-
-  for (const sighting of sightings) {
-    const key = `${Math.floor((sighting.location.lng + 180) / tier.lngDegrees)}:${Math.floor((sighting.location.lat + 90) / tier.latDegrees)}`;
-    const existing = groups.get(key);
-    if (!existing) {
-      groups.set(key, {
-        count: 1,
-        latTotal: sighting.location.lat,
-        lngTotal: sighting.location.lng,
-        highestImportance: sighting.importance,
-      });
-      continue;
-    }
-
-    existing.count += 1;
-    existing.latTotal += sighting.location.lat;
-    existing.lngTotal += sighting.location.lng;
-    if (
-      importanceRank[sighting.importance] >
-      importanceRank[existing.highestImportance]
-    ) {
-      existing.highestImportance = sighting.importance;
-    }
-  }
-
-  return {
-    type: "FeatureCollection" as const,
-    features: Array.from(groups.entries()).map(([id, group]) => ({
-      type: "Feature" as const,
-      properties: {
-        id,
-        point_count: group.count,
-        point_count_abbreviated:
-          group.count >= 1000
-            ? `${Math.round(group.count / 100) / 10}k`
-            : String(group.count),
-        importance: group.highestImportance,
-      },
-      geometry: {
-        type: "Point" as const,
-        coordinates: [
-          group.lngTotal / group.count,
-          group.latTotal / group.count,
-        ],
-      },
-    })),
   };
 };
 
@@ -293,23 +155,11 @@ export const SightingsMap = ({
   const [showHeatmap, setShowHeatmap] = useState(false);
 
   const geoJson = useMemo(() => toGeoJson(sightings), [sightings]);
-  const overviewGeoJsonByTier = useMemo(
-    () =>
-      new Map(
-        OVERVIEW_CLUSTER_TIERS.map((tier) => [
-          tier.id,
-          toOverviewGeoJson(sightings, tier),
-        ])
-      ),
-    [sightings]
-  );
   const geoJsonRef = useRef(geoJson);
-  const overviewGeoJsonByTierRef = useRef(overviewGeoJsonByTier);
 
   useEffect(() => {
     geoJsonRef.current = geoJson;
-    overviewGeoJsonByTierRef.current = overviewGeoJsonByTier;
-  }, [geoJson, overviewGeoJsonByTier]);
+  }, [geoJson]);
 
   // Toggle heatmap layer
   const toggleHeatmap = () => {
@@ -331,10 +181,6 @@ export const SightingsMap = ({
 
     if (newShowHeatmap) {
       // Hide clustered layers
-      for (const tier of OVERVIEW_CLUSTER_TIERS) {
-        setLayerVisibility(overviewCircleLayerId(tier), "none");
-        setLayerVisibility(overviewCountLayerId(tier), "none");
-      }
       setLayerVisibility("clusters", "none");
       setLayerVisibility("cluster-count", "none");
       setLayerVisibility("unclustered-point-glow", "none");
@@ -344,10 +190,6 @@ export const SightingsMap = ({
       setLayerVisibility("sightings-heatmap", "visible");
     } else {
       // Show clustered layers
-      for (const tier of OVERVIEW_CLUSTER_TIERS) {
-        setLayerVisibility(overviewCircleLayerId(tier), "visible");
-        setLayerVisibility(overviewCountLayerId(tier), "visible");
-      }
       setLayerVisibility("clusters", "visible");
       setLayerVisibility("cluster-count", "visible");
       setLayerVisibility("unclustered-point-glow", "visible");
@@ -364,7 +206,7 @@ export const SightingsMap = ({
       clusterId: number,
       coordinates: [number, number]
     ) => {
-      const source = map.getSource("sightings") as GeoJSONSource & {
+      const source = map.getSource(CLUSTER_SOURCE_ID) as GeoJSONSource & {
         getClusterLeaves?: (
           clusterId: number,
           limit: number,
@@ -427,7 +269,7 @@ export const SightingsMap = ({
       }
 
       const coordinates = features[0].geometry.coordinates as [number, number];
-      const source = map.getSource("sightings") as GeoJSONSource;
+      const source = map.getSource(CLUSTER_SOURCE_ID) as GeoJSONSource;
 
       try {
         const zoom = await source.getClusterExpansionZoom(clusterId);
@@ -452,23 +294,6 @@ export const SightingsMap = ({
       }
     },
     [showClusterPreview]
-  );
-
-  const handleOverviewClusterClick = useCallback(
-    (map: maplibregl.Map, event: maplibregl.MapLayerMouseEvent) => {
-      const feature = event.features?.[0];
-      if (!feature?.geometry || feature.geometry.type !== "Point") {
-        return;
-      }
-
-      map.easeTo({
-        center: feature.geometry.coordinates as [number, number],
-        zoom: Math.min(map.getZoom() + 2.25, POINT_DETAIL_MIN_ZOOM),
-        duration: 450,
-        essential: true,
-      });
-    },
-    []
   );
 
   const showSightingPopup = useCallback(
@@ -560,21 +385,12 @@ export const SightingsMap = ({
       const onClusterClick = (event: maplibregl.MapLayerMouseEvent) => {
         void handleClusterClick(map, event);
       };
-      const onOverviewClusterClick = (event: maplibregl.MapLayerMouseEvent) => {
-        handleOverviewClusterClick(map, event);
-      };
       const onPointClick = (event: maplibregl.MapLayerMouseEvent) => {
         void handlePointClick(map, event);
       };
       const attachInteractionHandlers = () => {
-        for (const tier of OVERVIEW_CLUSTER_TIERS) {
-          map.off("click", overviewCircleLayerId(tier), onOverviewClusterClick);
-        }
         map.off("click", "clusters", onClusterClick);
         map.off("click", "unclustered-point", onPointClick);
-        for (const tier of OVERVIEW_CLUSTER_TIERS) {
-          map.on("click", overviewCircleLayerId(tier), onOverviewClusterClick);
-        }
         map.on("click", "clusters", onClusterClick);
         map.on("click", "unclustered-point", onPointClick);
       };
@@ -582,8 +398,11 @@ export const SightingsMap = ({
       map.on("load", () => {
         console.log("Map loaded, mapRef will be set");
 
-        // Add source with clustering enabled
-        map.addSource("sightings", {
+        map.addSource(POINT_SOURCE_ID, {
+          type: "geojson",
+          data: geoJsonRef.current,
+        });
+        map.addSource(CLUSTER_SOURCE_ID, {
           type: "geojson",
           data: geoJsonRef.current,
           cluster: true,
@@ -591,20 +410,12 @@ export const SightingsMap = ({
           clusterRadius: CLUSTER_RADIUS_PX,
           clusterMinPoints: 2,
         });
-        for (const tier of OVERVIEW_CLUSTER_TIERS) {
-          map.addSource(overviewSourceId(tier), {
-            type: "geojson",
-            data:
-              overviewGeoJsonByTierRef.current.get(tier.id) ??
-              toOverviewGeoJson([], tier),
-          });
-        }
 
         // Heatmap layer (hidden by default) - very subtle like light clouds
         map.addLayer({
           id: "sightings-heatmap",
           type: "heatmap",
-          source: "sightings",
+          source: POINT_SOURCE_ID,
           layout: {
             visibility: "none",
           },
@@ -676,88 +487,12 @@ export const SightingsMap = ({
           },
         });
 
-        for (const tier of OVERVIEW_CLUSTER_TIERS) {
-          map.addLayer({
-            id: overviewCircleLayerId(tier),
-            type: "circle",
-            source: overviewSourceId(tier),
-            minzoom: tier.minZoom,
-            maxzoom: tier.maxZoom,
-            layout: {
-              visibility: "visible",
-            },
-            paint: {
-              "circle-radius": [
-                "interpolate",
-                ["linear"],
-                ["get", "point_count"],
-                1,
-                16,
-                10,
-                26,
-                50,
-                40,
-                150,
-                54,
-                500,
-                72,
-              ],
-              "circle-color": [
-                "match",
-                ["get", "importance"],
-                "critical",
-                "#f06449",
-                "high",
-                "#f2c94c",
-                "low",
-                "#1f6f5b",
-                "#3a86ff",
-              ],
-              "circle-opacity": 0.9,
-              "circle-stroke-width": 4,
-              "circle-stroke-color": "#ffffff",
-            },
-          });
-
-          map.addLayer({
-            id: overviewCountLayerId(tier),
-            type: "symbol",
-            source: overviewSourceId(tier),
-            minzoom: tier.minZoom,
-            maxzoom: tier.maxZoom,
-            layout: {
-              visibility: "visible",
-              "text-field": ["concat", ["get", "point_count_abbreviated"], "+"],
-              "text-font": ["Noto Sans Regular"],
-              "text-size": [
-                "interpolate",
-                ["linear"],
-                ["get", "point_count"],
-                1,
-                12,
-                50,
-                16,
-                150,
-                20,
-              ],
-              "text-allow-overlap": true,
-              "text-ignore-placement": true,
-            },
-            paint: {
-              "text-color": "#ffffff",
-              "text-halo-color": "rgba(12, 26, 36, 0.5)",
-              "text-halo-width": 1.5,
-            },
-          });
-        }
-
         // Cluster circles
         map.addLayer({
           id: "clusters",
           type: "circle",
-          source: "sightings",
+          source: CLUSTER_SOURCE_ID,
           filter: ["has", "point_count"],
-          minzoom: NATIVE_CLUSTER_MIN_ZOOM,
           layout: {
             visibility: "visible",
           },
@@ -806,9 +541,8 @@ export const SightingsMap = ({
         map.addLayer({
           id: "cluster-count",
           type: "symbol",
-          source: "sightings",
+          source: CLUSTER_SOURCE_ID,
           filter: ["has", "point_count"],
-          minzoom: NATIVE_CLUSTER_MIN_ZOOM,
           layout: {
             visibility: "visible",
             "text-field": [
@@ -842,9 +576,7 @@ export const SightingsMap = ({
         map.addLayer({
           id: "unclustered-point-glow",
           type: "circle",
-          source: "sightings",
-          filter: ["!", ["has", "point_count"]],
-          minzoom: POINT_DETAIL_MIN_ZOOM,
+          source: POINT_SOURCE_ID,
           layout: {
             visibility: "visible",
           },
@@ -852,16 +584,28 @@ export const SightingsMap = ({
             "circle-radius": [
               "interpolate",
               ["linear"],
-              ["get", "stackCount"],
-              1,
-              16,
+              ["zoom"],
+              0,
+              5,
+              7,
               8,
-              19,
-              24,
-              23,
+              11,
+              14,
+              14,
+              18,
             ],
             "circle-color": "#f2c94c",
-            "circle-opacity": 0.2,
+            "circle-opacity": [
+              "interpolate",
+              ["linear"],
+              ["zoom"],
+              0,
+              0.05,
+              7,
+              0.1,
+              11,
+              0.18,
+            ],
           },
         });
 
@@ -869,9 +613,7 @@ export const SightingsMap = ({
         map.addLayer({
           id: "unclustered-point",
           type: "circle",
-          source: "sightings",
-          filter: ["!", ["has", "point_count"]],
-          minzoom: POINT_DETAIL_MIN_ZOOM,
+          source: POINT_SOURCE_ID,
           layout: {
             visibility: "visible",
           },
@@ -879,13 +621,15 @@ export const SightingsMap = ({
             "circle-radius": [
               "interpolate",
               ["linear"],
-              ["get", "stackCount"],
-              1,
+              ["zoom"],
+              0,
+              2,
+              6,
+              3,
+              10,
+              5,
+              13,
               7,
-              8,
-              9,
-              24,
-              11,
             ],
             "circle-color": [
               "match",
@@ -900,17 +644,41 @@ export const SightingsMap = ({
             ],
             "circle-stroke-width": 2,
             "circle-stroke-color": "#ffffff",
+            "circle-opacity": [
+              "interpolate",
+              ["linear"],
+              ["zoom"],
+              0,
+              0.2,
+              6,
+              0.32,
+              10,
+              0.75,
+              12,
+              1,
+            ],
+            "circle-stroke-opacity": [
+              "interpolate",
+              ["linear"],
+              ["zoom"],
+              0,
+              0.35,
+              10,
+              0.75,
+              12,
+              1,
+            ],
           },
         });
 
         map.addLayer({
           id: "stack-count-label",
           type: "symbol",
-          source: "sightings",
+          source: POINT_SOURCE_ID,
           filter: [
             "all",
-            ["!", ["has", "point_count"]],
             [">", ["get", "stackCount"], 1],
+            ["==", ["get", "stackIndex"], 0],
           ],
           layout: {
             visibility: "visible",
@@ -927,16 +695,10 @@ export const SightingsMap = ({
         });
 
         attachInteractionHandlers();
+        map.moveLayer("clusters");
+        map.moveLayer("cluster-count");
 
         // Cursor handlers for clusters
-        for (const tier of OVERVIEW_CLUSTER_TIERS) {
-          map.on("mouseenter", overviewCircleLayerId(tier), () => {
-            map.getCanvas().style.cursor = "pointer";
-          });
-          map.on("mouseleave", overviewCircleLayerId(tier), () => {
-            map.getCanvas().style.cursor = "";
-          });
-        }
         map.on("mouseenter", "clusters", () => {
           map.getCanvas().style.cursor = "pointer";
         });
@@ -992,21 +754,12 @@ export const SightingsMap = ({
     const onClusterClick = (event: maplibregl.MapLayerMouseEvent) => {
       void handleClusterClick(map, event);
     };
-    const onOverviewClusterClick = (event: maplibregl.MapLayerMouseEvent) => {
-      handleOverviewClusterClick(map, event);
-    };
     const onPointClick = (event: maplibregl.MapLayerMouseEvent) => {
       void handlePointClick(map, event);
     };
     const attachInteractionHandlers = () => {
-      for (const tier of OVERVIEW_CLUSTER_TIERS) {
-        map.off("click", overviewCircleLayerId(tier), onOverviewClusterClick);
-      }
       map.off("click", "clusters", onClusterClick);
       map.off("click", "unclustered-point", onPointClick);
-      for (const tier of OVERVIEW_CLUSTER_TIERS) {
-        map.on("click", overviewCircleLayerId(tier), onOverviewClusterClick);
-      }
       map.on("click", "clusters", onClusterClick);
       map.on("click", "unclustered-point", onPointClick);
     };
@@ -1020,9 +773,12 @@ export const SightingsMap = ({
       map.setZoom(zoom);
       map.setPitch(pitch);
 
-      // Re-add sightings source with clustering
-      if (!map.getSource("sightings")) {
-        map.addSource("sightings", {
+      if (!map.getSource(POINT_SOURCE_ID)) {
+        map.addSource(POINT_SOURCE_ID, {
+          type: "geojson",
+          data: geoJsonRef.current,
+        });
+        map.addSource(CLUSTER_SOURCE_ID, {
           type: "geojson",
           data: geoJsonRef.current,
           cluster: true,
@@ -1030,20 +786,12 @@ export const SightingsMap = ({
           clusterRadius: CLUSTER_RADIUS_PX,
           clusterMinPoints: 2,
         });
-        for (const tier of OVERVIEW_CLUSTER_TIERS) {
-          map.addSource(overviewSourceId(tier), {
-            type: "geojson",
-            data:
-              overviewGeoJsonByTierRef.current.get(tier.id) ??
-              toOverviewGeoJson([], tier),
-          });
-        }
 
         // Add all layers (heatmap, clusters, unclustered points)
         map.addLayer({
           id: "sightings-heatmap",
           type: "heatmap",
-          source: "sightings",
+          source: POINT_SOURCE_ID,
           layout: { visibility: showHeatmap ? "visible" : "none" },
           paint: {
             "heatmap-weight": [
@@ -1108,85 +856,11 @@ export const SightingsMap = ({
           },
         });
 
-        for (const tier of OVERVIEW_CLUSTER_TIERS) {
-          map.addLayer({
-            id: overviewCircleLayerId(tier),
-            type: "circle",
-            source: overviewSourceId(tier),
-            minzoom: tier.minZoom,
-            maxzoom: tier.maxZoom,
-            layout: { visibility: showHeatmap ? "none" : "visible" },
-            paint: {
-              "circle-radius": [
-                "interpolate",
-                ["linear"],
-                ["get", "point_count"],
-                1,
-                16,
-                10,
-                26,
-                50,
-                40,
-                150,
-                54,
-                500,
-                72,
-              ],
-              "circle-color": [
-                "match",
-                ["get", "importance"],
-                "critical",
-                "#f06449",
-                "high",
-                "#f2c94c",
-                "low",
-                "#1f6f5b",
-                "#3a86ff",
-              ],
-              "circle-opacity": 0.9,
-              "circle-stroke-width": 4,
-              "circle-stroke-color": "#ffffff",
-            },
-          });
-
-          map.addLayer({
-            id: overviewCountLayerId(tier),
-            type: "symbol",
-            source: overviewSourceId(tier),
-            minzoom: tier.minZoom,
-            maxzoom: tier.maxZoom,
-            layout: {
-              visibility: showHeatmap ? "none" : "visible",
-              "text-field": ["concat", ["get", "point_count_abbreviated"], "+"],
-              "text-font": ["Noto Sans Regular"],
-              "text-size": [
-                "interpolate",
-                ["linear"],
-                ["get", "point_count"],
-                1,
-                12,
-                50,
-                16,
-                150,
-                20,
-              ],
-              "text-allow-overlap": true,
-              "text-ignore-placement": true,
-            },
-            paint: {
-              "text-color": "#ffffff",
-              "text-halo-color": "rgba(12, 26, 36, 0.5)",
-              "text-halo-width": 1.5,
-            },
-          });
-        }
-
         map.addLayer({
           id: "clusters",
           type: "circle",
-          source: "sightings",
+          source: CLUSTER_SOURCE_ID,
           filter: ["has", "point_count"],
-          minzoom: NATIVE_CLUSTER_MIN_ZOOM,
           layout: { visibility: showHeatmap ? "none" : "visible" },
           paint: {
             "circle-radius": [
@@ -1232,9 +906,8 @@ export const SightingsMap = ({
         map.addLayer({
           id: "cluster-count",
           type: "symbol",
-          source: "sightings",
+          source: CLUSTER_SOURCE_ID,
           filter: ["has", "point_count"],
-          minzoom: NATIVE_CLUSTER_MIN_ZOOM,
           layout: {
             visibility: showHeatmap ? "none" : "visible",
             "text-field": [
@@ -1267,45 +940,55 @@ export const SightingsMap = ({
         map.addLayer({
           id: "unclustered-point-glow",
           type: "circle",
-          source: "sightings",
-          filter: ["!", ["has", "point_count"]],
-          minzoom: POINT_DETAIL_MIN_ZOOM,
+          source: POINT_SOURCE_ID,
           layout: { visibility: showHeatmap ? "none" : "visible" },
           paint: {
             "circle-radius": [
               "interpolate",
               ["linear"],
-              ["get", "stackCount"],
-              1,
-              16,
+              ["zoom"],
+              0,
+              5,
+              7,
               8,
-              19,
-              24,
-              23,
+              11,
+              14,
+              14,
+              18,
             ],
             "circle-color": "#f2c94c",
-            "circle-opacity": 0.2,
+            "circle-opacity": [
+              "interpolate",
+              ["linear"],
+              ["zoom"],
+              0,
+              0.05,
+              7,
+              0.1,
+              11,
+              0.18,
+            ],
           },
         });
 
         map.addLayer({
           id: "unclustered-point",
           type: "circle",
-          source: "sightings",
-          filter: ["!", ["has", "point_count"]],
-          minzoom: POINT_DETAIL_MIN_ZOOM,
+          source: POINT_SOURCE_ID,
           layout: { visibility: showHeatmap ? "none" : "visible" },
           paint: {
             "circle-radius": [
               "interpolate",
               ["linear"],
-              ["get", "stackCount"],
-              1,
+              ["zoom"],
+              0,
+              2,
+              6,
+              3,
+              10,
+              5,
+              13,
               7,
-              8,
-              9,
-              24,
-              11,
             ],
             "circle-color": [
               "match",
@@ -1320,17 +1003,41 @@ export const SightingsMap = ({
             ],
             "circle-stroke-width": 2,
             "circle-stroke-color": "#ffffff",
+            "circle-opacity": [
+              "interpolate",
+              ["linear"],
+              ["zoom"],
+              0,
+              0.2,
+              6,
+              0.32,
+              10,
+              0.75,
+              12,
+              1,
+            ],
+            "circle-stroke-opacity": [
+              "interpolate",
+              ["linear"],
+              ["zoom"],
+              0,
+              0.35,
+              10,
+              0.75,
+              12,
+              1,
+            ],
           },
         });
 
         map.addLayer({
           id: "stack-count-label",
           type: "symbol",
-          source: "sightings",
+          source: POINT_SOURCE_ID,
           filter: [
             "all",
-            ["!", ["has", "point_count"]],
             [">", ["get", "stackCount"], 1],
+            ["==", ["get", "stackIndex"], 0],
           ],
           layout: {
             visibility: showHeatmap ? "none" : "visible",
@@ -1347,20 +1054,10 @@ export const SightingsMap = ({
         });
 
         attachInteractionHandlers();
+        map.moveLayer("clusters");
+        map.moveLayer("cluster-count");
 
         // Re-add cursor handlers
-        for (const tier of OVERVIEW_CLUSTER_TIERS) {
-          map.on(
-            "mouseenter",
-            overviewCircleLayerId(tier),
-            () => (map.getCanvas().style.cursor = "pointer")
-          );
-          map.on(
-            "mouseleave",
-            overviewCircleLayerId(tier),
-            () => (map.getCanvas().style.cursor = "")
-          );
-        }
         map.on(
           "mouseenter",
           "clusters",
@@ -1383,33 +1080,26 @@ export const SightingsMap = ({
         );
       }
     });
-  }, [
-    effectiveTheme,
-    handleClusterClick,
-    handleOverviewClusterClick,
-    handlePointClick,
-    showHeatmap,
-  ]);
+  }, [effectiveTheme, handleClusterClick, handlePointClick, showHeatmap]);
 
   useEffect(() => {
     const map = mapRef.current;
     if (!map) {
       return;
     }
-    const source = map.getSource("sightings") as GeoJSONSource | undefined;
-    if (source) {
-      source.setData(geoJson);
+    const pointSource = map.getSource(POINT_SOURCE_ID) as
+      | GeoJSONSource
+      | undefined;
+    const clusterSource = map.getSource(CLUSTER_SOURCE_ID) as
+      | GeoJSONSource
+      | undefined;
+    if (pointSource) {
+      pointSource.setData(geoJson);
     }
-    for (const tier of OVERVIEW_CLUSTER_TIERS) {
-      const overviewSource = map.getSource(overviewSourceId(tier)) as
-        | GeoJSONSource
-        | undefined;
-      const overviewGeoJson = overviewGeoJsonByTier.get(tier.id);
-      if (overviewSource && overviewGeoJson) {
-        overviewSource.setData(overviewGeoJson);
-      }
+    if (clusterSource) {
+      clusterSource.setData(geoJson);
     }
-  }, [geoJson, overviewGeoJsonByTier]);
+  }, [geoJson]);
 
   useEffect(() => {
     const map = mapRef.current;
