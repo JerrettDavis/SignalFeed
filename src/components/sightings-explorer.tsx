@@ -7,6 +7,7 @@ import { SightingSchema } from "@/contracts/sighting";
 import type { SightingCard } from "@/data/mock-sightings";
 import { categoryLabelById, typeLabelById } from "@/data/taxonomy";
 import { EVENTS } from "@/shared/events";
+import { useSignalNavigation } from "@/stores/signalNavigationStore";
 
 type ApiResponse<T> = {
   data: T;
@@ -94,16 +95,27 @@ export const SightingsExplorer = () => {
     useState<SelectedGeofence | null>(null);
   const [selectedSighting, setSelectedSighting] =
     useState<SelectedSighting | null>(null);
+  const { selectedSignal } = useSignalNavigation();
 
   const loadSightings = useCallback(async () => {
     setStatus("loading");
     try {
-      const response = await fetch("/api/sightings");
+      const url = selectedSignal
+        ? `/api/signals/${selectedSignal}/sightings?limit=10000`
+        : "/api/sightings";
+      const response = await fetch(url);
       if (!response.ok) {
         throw new Error("Request failed.");
       }
       const data = (await response.json()) as ApiResponse<unknown>;
-      const parsed = SightingSchema.array().safeParse(data.data);
+      const payload =
+        selectedSignal &&
+        data.data &&
+        typeof data.data === "object" &&
+        "sightings" in data.data
+          ? (data.data as { sightings: unknown }).sightings
+          : data.data;
+      const parsed = SightingSchema.array().safeParse(payload);
       if (!parsed.success) {
         throw new Error("Invalid data.");
       }
@@ -112,7 +124,7 @@ export const SightingsExplorer = () => {
     } catch {
       setStatus("error");
     }
-  }, []);
+  }, [selectedSignal]);
 
   useEffect(() => {
     void loadSightings();

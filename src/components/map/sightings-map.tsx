@@ -41,8 +41,8 @@ const importanceRank = {
   low: 1,
 } as const;
 
-const CLUSTER_MAX_ZOOM = 15;
-const CLUSTER_RADIUS_PX = 90;
+const CLUSTER_MAX_ZOOM = 17;
+const CLUSTER_RADIUS_PX = 120;
 const CLUSTER_PREVIEW_ZOOM = 15;
 const STACK_LABEL_MIN_ZOOM = 12;
 
@@ -445,6 +445,7 @@ export const SightingsMap = ({
           cluster: true,
           clusterMaxZoom: CLUSTER_MAX_ZOOM,
           clusterRadius: CLUSTER_RADIUS_PX,
+          clusterMinPoints: 2,
         });
 
         // Heatmap layer (hidden by default) - very subtle like light clouds
@@ -581,7 +582,11 @@ export const SightingsMap = ({
           filter: ["has", "point_count"],
           layout: {
             visibility: "visible",
-            "text-field": "{point_count_abbreviated}",
+            "text-field": [
+              "concat",
+              ["to-string", ["get", "point_count"]],
+              "+",
+            ],
             "text-font": ["Noto Sans Regular"],
             "text-size": [
               "interpolate",
@@ -775,6 +780,7 @@ export const SightingsMap = ({
           cluster: true,
           clusterMaxZoom: CLUSTER_MAX_ZOOM,
           clusterRadius: CLUSTER_RADIUS_PX,
+          clusterMinPoints: 2,
         });
 
         // Add all layers (heatmap, clusters, unclustered points)
@@ -900,7 +906,11 @@ export const SightingsMap = ({
           filter: ["has", "point_count"],
           layout: {
             visibility: showHeatmap ? "none" : "visible",
-            "text-field": "{point_count_abbreviated}",
+            "text-field": [
+              "concat",
+              ["to-string", ["get", "point_count"]],
+              "+",
+            ],
             "text-font": ["Noto Sans Regular"],
             "text-size": [
               "interpolate",

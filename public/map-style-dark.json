@@ -1,6 +1,7 @@
 {
   "version": 8,
   "name": "SightSignal OSM Dark",
+  "glyphs": "https://demotiles.maplibre.org/font/{fontstack}/{range}.pbf",
   "sources": {
     "carto": {
       "type": "raster",
