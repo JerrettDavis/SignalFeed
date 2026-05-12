@@ -6,7 +6,10 @@
 
 import { NextRequest } from "next/server";
 import { jsonOk, jsonNotFound, jsonServerError } from "@/shared/http";
-import { getSignalRepository } from "@/adapters/repositories/repository-factory";
+import {
+  getSightingRepository,
+  getSignalRepository,
+} from "@/adapters/repositories/repository-factory";
 import { getSql } from "@/adapters/repositories/postgres/client";
 import {
   countSightingsMatchingSignal,
@@ -15,13 +18,20 @@ import {
   type SightingRow,
 } from "@/adapters/repositories/postgres/signal-sighting-matches";
 import { seedSignals } from "@/data/seed";
-import type { SignalId } from "@/domain/signals/signal";
+import type { Signal, SignalId } from "@/domain/signals/signal";
+import type { SightingFilters } from "@/ports/sighting-repository";
 
 export const runtime = "nodejs";
 
 interface RouteParams {
   params: Promise<{ id: string }>;
 }
+
+const signalFilters = (signal: Signal): SightingFilters => ({
+  categoryIds: signal.conditions.categoryIds as SightingFilters["categoryIds"],
+  typeIds: signal.conditions.typeIds as SightingFilters["typeIds"],
+  status: "active",
+});
 
 export async function GET(request: NextRequest, { params }: RouteParams) {
   try {
@@ -42,11 +52,39 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
     const limit = parseInt(searchParams.get("limit") || "50", 10);
     const offset = parseInt(searchParams.get("offset") || "0", 10);
 
-    const sql = getSql();
+    let sql: ReturnType<typeof getSql> | null = null;
+    try {
+      sql = getSql();
+    } catch {
+      sql = null;
+    }
 
     console.log(
       `[Signal Sightings] Fetching sightings for signal ${signalId} (limit: ${limit}, offset: ${offset})`
     );
+
+    if (!sql) {
+      const repository = getSightingRepository();
+      const allMatches = await repository.list(signalFilters(signal));
+      const sightings = allMatches.slice(offset, offset + limit);
+
+      return jsonOk({
+        data: {
+          sightings,
+          signal: {
+            id: signal.id,
+            name: signal.name,
+            description: signal.description,
+          },
+          pagination: {
+            total: allMatches.length,
+            limit,
+            offset,
+            hasMore: offset + limit < allMatches.length,
+          },
+        },
+      });
+    }
 
     const associationCountResult = await sql<{ count: string }[]>`
       SELECT COUNT(*)::text as count

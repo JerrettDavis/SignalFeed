@@ -2,8 +2,8 @@
 
 import { useCallback, useEffect, useState } from "react";
 import type { z } from "zod";
+import { z as zod } from "zod";
 import dynamic from "next/dynamic";
-import { SightingSchema } from "@/contracts/sighting";
 import type { SightingCard } from "@/data/mock-sightings";
 import { categoryLabelById, typeLabelById } from "@/data/taxonomy";
 import { EVENTS } from "@/shared/events";
@@ -12,6 +12,26 @@ import { useSignalNavigation } from "@/stores/signalNavigationStore";
 type ApiResponse<T> = {
   data: T;
 };
+
+const MapSightingSchema = zod
+  .object({
+    id: zod.string(),
+    typeId: zod.string(),
+    categoryId: zod.string(),
+    location: zod.object({
+      lat: zod.number(),
+      lng: zod.number(),
+    }),
+    description: zod.string(),
+    importance: zod
+      .enum(["low", "normal", "high", "critical"])
+      .default("normal"),
+    status: zod.enum(["active", "resolved"]),
+    observedAt: zod.string(),
+    score: zod.number().default(0),
+    hotScore: zod.number().default(0),
+  })
+  .passthrough();
 
 const SightingsMap = dynamic(
   () =>
@@ -51,7 +71,7 @@ const formatRelativeTime = (iso: string) => {
   return `${diffDays} d ago`;
 };
 
-const toCard = (sighting: z.infer<typeof SightingSchema>): SightingCard => ({
+const toCard = (sighting: z.infer<typeof MapSightingSchema>): SightingCard => ({
   id: sighting.id,
   title:
     sighting.description.length > 42
@@ -115,7 +135,7 @@ export const SightingsExplorer = () => {
         "sightings" in data.data
           ? (data.data as { sightings: unknown }).sightings
           : data.data;
-      const parsed = SightingSchema.array().safeParse(payload);
+      const parsed = MapSightingSchema.array().safeParse(payload);
       if (!parsed.success) {
         throw new Error("Invalid data.");
       }
