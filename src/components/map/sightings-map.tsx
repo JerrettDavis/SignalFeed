@@ -1,7 +1,7 @@
 "use client";
 
 import type maplibregl from "maplibre-gl";
-import type { GeoJSONSource } from "maplibre-gl";
+import type { ExpressionSpecification, GeoJSONSource } from "maplibre-gl";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { config } from "@/shared/config";
 import { loadMaplibre } from "@/shared/maplibre";
@@ -43,9 +43,11 @@ const importanceRank = {
 
 const POINT_SOURCE_ID = "sighting-points";
 const CLUSTER_SOURCE_ID = "sighting-clusters";
+const CLUSTER_GHOST_SOURCE_ID = "sighting-cluster-ghosts";
 const CLUSTER_PREVIEW_ZOOM = 15;
 const STACK_LABEL_MIN_ZOOM = 12;
 const MERCATOR_TILE_SIZE = 512;
+const CLUSTER_TRANSITION_MS = 260;
 
 const coordinateKey = (location: SightingCard["location"]) =>
   `${location.lat.toFixed(4)}:${location.lng.toFixed(4)}`;
@@ -168,6 +170,18 @@ type ClusterState = {
   clusteredPointIds: Set<string>;
 };
 
+const emptyClusterGeoJson: ClusterGeoJson = {
+  type: "FeatureCollection",
+  features: [],
+};
+
+const lastClusterStates = new WeakMap<maplibregl.Map, ClusterState>();
+const clusterTransitionFeatureCounts = new WeakMap<maplibregl.Map, number>();
+const clusterTransitionTimers = new WeakMap<
+  maplibregl.Map,
+  ReturnType<typeof setTimeout>
+>();
+
 declare global {
   interface Window {
     __signalFeedMapDebug?: {
@@ -188,6 +202,10 @@ declare global {
         zoom: number;
         center?: [number, number];
       }) => Promise<void>;
+      getClusterTransitionSummary: () => {
+        visible: boolean;
+        featureCount: number;
+      } | null;
     };
   }
 }
@@ -230,13 +248,41 @@ const minClusterPointsForZoom = (zoom: number) => {
   return 2;
 };
 
+const clusterCircleRadiusExpression = (scale = 1): ExpressionSpecification => [
+  "interpolate",
+  ["linear"],
+  ["get", "point_count"],
+  2,
+  16 * scale,
+  10,
+  23 * scale,
+  30,
+  31 * scale,
+  100,
+  42 * scale,
+  250,
+  52 * scale,
+];
+
+const clusterCircleColorExpression: ExpressionSpecification = [
+  "step",
+  ["get", "point_count"],
+  "#3a86ff",
+  10,
+  "#f2c94c",
+  30,
+  "#f77f00",
+  100,
+  "#f06449",
+];
+
 const toClusterState = (
   geoJson: SightingGeoJson,
   zoom: number
 ): ClusterState => {
   if (zoom >= CLUSTER_PREVIEW_ZOOM) {
     return {
-      clusterGeoJson: { type: "FeatureCollection" as const, features: [] },
+      clusterGeoJson: emptyClusterGeoJson,
       clusteredPointIds: new Set(),
     };
   }
@@ -341,7 +387,70 @@ const toVisiblePointGeoJson = (
   ),
 });
 
-const updateMapSources = (map: maplibregl.Map, geoJson: SightingGeoJson) => {
+const animatePreviousClusters = (
+  map: maplibregl.Map,
+  previousState: ClusterState | undefined
+) => {
+  if (!previousState?.clusterGeoJson.features.length) {
+    return;
+  }
+
+  const source = map.getSource(CLUSTER_GHOST_SOURCE_ID) as
+    | GeoJSONSource
+    | undefined;
+  if (!source || !map.getLayer("cluster-ghosts")) {
+    return;
+  }
+
+  const existingTimer = clusterTransitionTimers.get(map);
+  if (existingTimer) {
+    clearTimeout(existingTimer);
+  }
+
+  source.setData(previousState.clusterGeoJson);
+  clusterTransitionFeatureCounts.set(
+    map,
+    previousState.clusterGeoJson.features.length
+  );
+  map.setLayoutProperty("cluster-ghosts", "visibility", "visible");
+  map.setPaintProperty(
+    "cluster-ghosts",
+    "circle-radius",
+    clusterCircleRadiusExpression()
+  );
+  map.setPaintProperty("cluster-ghosts", "circle-opacity", 0.36);
+
+  requestAnimationFrame(() => {
+    if (!map.getLayer("cluster-ghosts")) {
+      return;
+    }
+
+    map.setPaintProperty(
+      "cluster-ghosts",
+      "circle-radius",
+      clusterCircleRadiusExpression(1.22)
+    );
+    map.setPaintProperty("cluster-ghosts", "circle-opacity", 0);
+  });
+
+  const timer = setTimeout(() => {
+    if (!map.getLayer("cluster-ghosts")) {
+      return;
+    }
+
+    map.setLayoutProperty("cluster-ghosts", "visibility", "none");
+    source.setData(emptyClusterGeoJson);
+    clusterTransitionFeatureCounts.set(map, 0);
+  }, CLUSTER_TRANSITION_MS + 80);
+
+  clusterTransitionTimers.set(map, timer);
+};
+
+const updateMapSources = (
+  map: maplibregl.Map,
+  geoJson: SightingGeoJson,
+  options: { animate?: boolean } = {}
+) => {
   const clusterSource = map.getSource(CLUSTER_SOURCE_ID) as
     | GeoJSONSource
     | undefined;
@@ -349,6 +458,10 @@ const updateMapSources = (map: maplibregl.Map, geoJson: SightingGeoJson) => {
     | GeoJSONSource
     | undefined;
   const clusterState = toClusterState(geoJson, map.getZoom());
+
+  if (options.animate) {
+    animatePreviousClusters(map, lastClusterStates.get(map));
+  }
 
   if (clusterSource) {
     clusterSource.setData(clusterState.clusterGeoJson);
@@ -358,6 +471,8 @@ const updateMapSources = (map: maplibregl.Map, geoJson: SightingGeoJson) => {
       toVisiblePointGeoJson(geoJson, clusterState.clusteredPointIds)
     );
   }
+
+  lastClusterStates.set(map, clusterState);
 };
 
 export const SightingsMap = ({
@@ -420,13 +535,25 @@ export const SightingsMap = ({
             return;
           }
 
-          map.once("idle", () => resolve());
           map.jumpTo({
             center: center ?? map.getCenter(),
             zoom,
           });
-          updateMapSources(map, geoJsonRef.current);
+          updateMapSources(map, geoJsonRef.current, { animate: true });
+          requestAnimationFrame(() => resolve());
         }),
+      getClusterTransitionSummary: () => {
+        const map = mapRef.current;
+        if (!map || !map.getLayer("cluster-ghosts")) {
+          return null;
+        }
+
+        return {
+          visible:
+            map.getLayoutProperty("cluster-ghosts", "visibility") === "visible",
+          featureCount: clusterTransitionFeatureCounts.get(map) ?? 0,
+        };
+      },
     };
 
     return () => {
@@ -657,7 +784,8 @@ export const SightingsMap = ({
         map.on("click", "clusters", onClusterClick);
         map.on("click", "unclustered-point", onPointClick);
       };
-      const refreshClusters = () => updateMapSources(map, geoJsonRef.current);
+      const refreshClusters = () =>
+        updateMapSources(map, geoJsonRef.current, { animate: true });
       map.on("zoomend", refreshClusters);
       map.on("moveend", refreshClusters);
 
@@ -675,6 +803,14 @@ export const SightingsMap = ({
           type: "geojson",
           data: toClusterState(geoJsonRef.current, map.getZoom())
             .clusterGeoJson,
+        });
+        lastClusterStates.set(
+          map,
+          toClusterState(geoJsonRef.current, map.getZoom())
+        );
+        map.addSource(CLUSTER_GHOST_SOURCE_ID, {
+          type: "geojson",
+          data: emptyClusterGeoJson,
         });
 
         // Heatmap layer (hidden by default) - very subtle like light clouds
@@ -755,6 +891,28 @@ export const SightingsMap = ({
 
         // Cluster circles
         map.addLayer({
+          id: "cluster-ghosts",
+          type: "circle",
+          source: CLUSTER_GHOST_SOURCE_ID,
+          filter: ["has", "point_count"],
+          layout: {
+            visibility: "none",
+          },
+          paint: {
+            "circle-radius": clusterCircleRadiusExpression(),
+            "circle-color": clusterCircleColorExpression,
+            "circle-opacity": 0,
+            "circle-stroke-width": 3,
+            "circle-stroke-color": "#ffffff",
+            "circle-radius-transition": {
+              duration: CLUSTER_TRANSITION_MS,
+            },
+            "circle-opacity-transition": {
+              duration: CLUSTER_TRANSITION_MS,
+            },
+          },
+        });
+        map.addLayer({
           id: "clusters",
           type: "circle",
           source: CLUSTER_SOURCE_ID,
@@ -763,32 +921,8 @@ export const SightingsMap = ({
             visibility: "visible",
           },
           paint: {
-            "circle-radius": [
-              "interpolate",
-              ["linear"],
-              ["get", "point_count"],
-              2,
-              16,
-              10,
-              23,
-              30,
-              31,
-              100,
-              42,
-              250,
-              52,
-            ],
-            "circle-color": [
-              "step",
-              ["get", "point_count"],
-              "#3a86ff", // color when count < 10
-              10,
-              "#f2c94c", // color when count >= 10
-              30,
-              "#f77f00", // color when count >= 30
-              100,
-              "#f06449", // color when count >= 100
-            ],
+            "circle-radius": clusterCircleRadiusExpression(),
+            "circle-color": clusterCircleColorExpression,
             "circle-opacity": 0.72,
             "circle-stroke-width": [
               "interpolate",
@@ -997,6 +1131,12 @@ export const SightingsMap = ({
 
     return () => {
       cancelled = true;
+      const transitionTimer = mapInstance
+        ? clusterTransitionTimers.get(mapInstance)
+        : undefined;
+      if (transitionTimer) {
+        clearTimeout(transitionTimer);
+      }
       mapInstance?.remove();
       mapRef.current = null;
     };
@@ -1050,6 +1190,14 @@ export const SightingsMap = ({
           type: "geojson",
           data: toClusterState(geoJsonRef.current, map.getZoom())
             .clusterGeoJson,
+        });
+        lastClusterStates.set(
+          map,
+          toClusterState(geoJsonRef.current, map.getZoom())
+        );
+        map.addSource(CLUSTER_GHOST_SOURCE_ID, {
+          type: "geojson",
+          data: emptyClusterGeoJson,
         });
 
         // Add all layers (heatmap, clusters, unclustered points)
@@ -1122,38 +1270,35 @@ export const SightingsMap = ({
         });
 
         map.addLayer({
+          id: "cluster-ghosts",
+          type: "circle",
+          source: CLUSTER_GHOST_SOURCE_ID,
+          filter: ["has", "point_count"],
+          layout: { visibility: "none" },
+          paint: {
+            "circle-radius": clusterCircleRadiusExpression(),
+            "circle-color": clusterCircleColorExpression,
+            "circle-opacity": 0,
+            "circle-stroke-width": 3,
+            "circle-stroke-color": "#ffffff",
+            "circle-radius-transition": {
+              duration: CLUSTER_TRANSITION_MS,
+            },
+            "circle-opacity-transition": {
+              duration: CLUSTER_TRANSITION_MS,
+            },
+          },
+        });
+
+        map.addLayer({
           id: "clusters",
           type: "circle",
           source: CLUSTER_SOURCE_ID,
           filter: ["has", "point_count"],
           layout: { visibility: showHeatmap ? "none" : "visible" },
           paint: {
-            "circle-radius": [
-              "interpolate",
-              ["linear"],
-              ["get", "point_count"],
-              2,
-              16,
-              10,
-              23,
-              30,
-              31,
-              100,
-              42,
-              250,
-              52,
-            ],
-            "circle-color": [
-              "step",
-              ["get", "point_count"],
-              "#3a86ff",
-              10,
-              "#f2c94c",
-              30,
-              "#f77f00",
-              100,
-              "#f06449",
-            ],
+            "circle-radius": clusterCircleRadiusExpression(),
+            "circle-color": clusterCircleColorExpression,
             "circle-opacity": 0.72,
             "circle-stroke-width": [
               "interpolate",

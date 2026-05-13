@@ -14,6 +14,11 @@ type ClusterSummary = {
   }>;
 };
 
+type ClusterTransitionSummary = {
+  visible: boolean;
+  featureCount: number;
+};
+
 const observedAt = "2026-05-12T12:00:00.000Z";
 
 const makeSighting = (
@@ -98,6 +103,18 @@ const getClusterSummary = async (page: Page) =>
       ).__signalFeedMapDebug?.getClusterSummary() ?? null
   );
 
+const getClusterTransitionSummary = async (page: Page) =>
+  page.evaluate(
+    () =>
+      (
+        window as typeof window & {
+          __signalFeedMapDebug?: {
+            getClusterTransitionSummary: () => ClusterTransitionSummary | null;
+          };
+        }
+      ).__signalFeedMapDebug?.getClusterTransitionSummary() ?? null
+  );
+
 const setMapZoom = async (page: Page, zoom: number) => {
   await page.evaluate(
     async ({ zoom }) => {
@@ -133,11 +150,22 @@ test("map clusters progressively split and reveal dots across zoom levels", asyn
       async () => (await getClusterSummary(page))?.totalClusteredPoints ?? 0
     )
     .toBeGreaterThan(0);
+  await expect
+    .poll(async () => (await getClusterTransitionSummary(page)) !== null)
+    .toBe(true);
 
   const summaries: Record<string, ClusterSummary> = {};
 
   for (const zoom of [4, 6, 8, 10, 12, 14]) {
     await setMapZoom(page, zoom);
+    if (zoom > 4) {
+      await expect
+        .poll(async () => {
+          const transition = await getClusterTransitionSummary(page);
+          return transition?.visible && transition.featureCount > 0;
+        })
+        .toBe(true);
+    }
     await page.screenshot({
       path: `test-results/map-clustering-zoom-${zoom}.png`,
       fullPage: false,
