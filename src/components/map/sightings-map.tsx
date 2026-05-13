@@ -813,7 +813,7 @@ export const SightingsMap = ({
       };
       const refreshClusters = (options: { force?: boolean } = {}) => {
         if (pendingClusterRefreshFrame !== null) {
-          cancelAnimationFrame(pendingClusterRefreshFrame);
+          return;
         }
 
         pendingClusterRefreshFrame = requestAnimationFrame(() => {
