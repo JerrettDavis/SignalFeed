@@ -6,6 +6,8 @@ type ClusterSummary = {
   maxClusterSize: number;
   totalClusteredPoints: number;
   visiblePointCount: number;
+  signature: string;
+  renderedSignature: string | null;
   clusters: Array<{
     count: number;
     lng: number;
@@ -125,12 +127,33 @@ const setMapZoom = async (page: Page, zoom: number) => {
             setView: (view: {
               zoom: number;
               center: [number, number];
+              duration?: number;
             }) => Promise<void>;
           };
         }
       ).__signalFeedMapDebug?.setView({ zoom, center });
     },
     { zoom }
+  );
+};
+
+const animateMapZoom = async (page: Page, zoom: number, duration: number) => {
+  await page.evaluate(
+    async ({ zoom, duration }) => {
+      const center: [number, number] = [-87.63, 41.88];
+      await (
+        window as typeof window & {
+          __signalFeedMapDebug?: {
+            setView: (view: {
+              zoom: number;
+              center: [number, number];
+              duration?: number;
+            }) => Promise<void>;
+          };
+        }
+      ).__signalFeedMapDebug?.setView({ zoom, center, duration });
+    },
+    { zoom, duration }
   );
 };
 
@@ -152,6 +175,24 @@ test("map clusters progressively split and reveal dots across zoom levels", asyn
     .toBeGreaterThan(0);
   await expect
     .poll(async () => (await getClusterTransitionSummary(page)) !== null)
+    .toBe(true);
+
+  await setMapZoom(page, 5);
+  const beforeAnimatedZoom = await getClusterSummary(page);
+  await animateMapZoom(page, 8, 900);
+  await expect
+    .poll(async () => {
+      const summary = await getClusterSummary(page);
+      return (
+        summary?.renderedSignature !== beforeAnimatedZoom?.renderedSignature
+      );
+    })
+    .toBe(true);
+  await expect
+    .poll(async () => {
+      const transition = await getClusterTransitionSummary(page);
+      return transition?.visible && transition.featureCount > 0;
+    })
     .toBe(true);
 
   const summaries: Record<string, ClusterSummary> = {};

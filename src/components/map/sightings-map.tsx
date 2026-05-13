@@ -168,11 +168,18 @@ type ClusterGeoJson = {
 type ClusterState = {
   clusterGeoJson: ClusterGeoJson;
   clusteredPointIds: Set<string>;
+  signature: string;
 };
 
 const emptyClusterGeoJson: ClusterGeoJson = {
   type: "FeatureCollection",
   features: [],
+};
+
+const emptyClusterState: ClusterState = {
+  clusterGeoJson: emptyClusterGeoJson,
+  clusteredPointIds: new Set(),
+  signature: "empty",
 };
 
 const lastClusterStates = new WeakMap<maplibregl.Map, ClusterState>();
@@ -191,6 +198,8 @@ declare global {
         maxClusterSize: number;
         totalClusteredPoints: number;
         visiblePointCount: number;
+        signature: string;
+        renderedSignature: string | null;
         clusters: Array<{
           count: number;
           lng: number;
@@ -201,6 +210,7 @@ declare global {
       setView: (view: {
         zoom: number;
         center?: [number, number];
+        duration?: number;
       }) => Promise<void>;
       getClusterTransitionSummary: () => {
         visible: boolean;
@@ -281,10 +291,7 @@ const toClusterState = (
   zoom: number
 ): ClusterState => {
   if (zoom >= CLUSTER_PREVIEW_ZOOM) {
-    return {
-      clusterGeoJson: emptyClusterGeoJson,
-      clusteredPointIds: new Set(),
-    };
+    return emptyClusterState;
   }
 
   const radius = clusterRadiusForZoom(zoom);
@@ -336,6 +343,7 @@ const toClusterState = (
   }
 
   const clusteredPointIds = new Set<string>();
+  const clusterSignatures: string[] = [];
   const clusterFeatures: ClusterGeoJson["features"] = Array.from(
     groups.entries()
   )
@@ -344,6 +352,7 @@ const toClusterState = (
       for (const pointId of group.ids) {
         clusteredPointIds.add(pointId);
       }
+      clusterSignatures.push(group.ids.join(","));
 
       return {
         type: "Feature" as const,
@@ -374,6 +383,7 @@ const toClusterState = (
       features: clusterFeatures,
     },
     clusteredPointIds,
+    signature: clusterSignatures.join("|"),
   };
 };
 
@@ -449,7 +459,7 @@ const animatePreviousClusters = (
 const updateMapSources = (
   map: maplibregl.Map,
   geoJson: SightingGeoJson,
-  options: { animate?: boolean } = {}
+  options: { animate?: boolean; force?: boolean } = {}
 ) => {
   const clusterSource = map.getSource(CLUSTER_SOURCE_ID) as
     | GeoJSONSource
@@ -458,9 +468,14 @@ const updateMapSources = (
     | GeoJSONSource
     | undefined;
   const clusterState = toClusterState(geoJson, map.getZoom());
+  const previousState = lastClusterStates.get(map);
+
+  if (!options.force && previousState?.signature === clusterState.signature) {
+    return;
+  }
 
   if (options.animate) {
-    animatePreviousClusters(map, lastClusterStates.get(map));
+    animatePreviousClusters(map, previousState);
   }
 
   if (clusterSource) {
@@ -524,10 +539,12 @@ export const SightingsMap = ({
           visiblePointCount:
             geoJsonRef.current.features.length -
             clusterState.clusteredPointIds.size,
+          signature: clusterState.signature,
+          renderedSignature: lastClusterStates.get(map)?.signature ?? null,
           clusters,
         };
       },
-      setView: ({ zoom, center }) =>
+      setView: ({ zoom, center, duration }) =>
         new Promise<void>((resolve) => {
           const map = mapRef.current;
           if (!map) {
@@ -535,10 +552,19 @@ export const SightingsMap = ({
             return;
           }
 
-          map.jumpTo({
+          const camera = {
             center: center ?? map.getCenter(),
             zoom,
-          });
+          };
+          if (duration && duration > 0) {
+            map.easeTo({
+              ...camera,
+              duration,
+              essential: true,
+            });
+          } else {
+            map.jumpTo(camera);
+          }
           updateMapSources(map, geoJsonRef.current, { animate: true });
           requestAnimationFrame(() => resolve());
         }),
@@ -740,6 +766,7 @@ export const SightingsMap = ({
 
     let cancelled = false;
     let mapInstance: maplibregl.Map | null = null;
+    let pendingClusterRefreshFrame: number | null = null;
 
     const init = async () => {
       const maplibre = await loadMaplibre();
@@ -784,10 +811,28 @@ export const SightingsMap = ({
         map.on("click", "clusters", onClusterClick);
         map.on("click", "unclustered-point", onPointClick);
       };
-      const refreshClusters = () =>
-        updateMapSources(map, geoJsonRef.current, { animate: true });
-      map.on("zoomend", refreshClusters);
-      map.on("moveend", refreshClusters);
+      const refreshClusters = (options: { force?: boolean } = {}) => {
+        if (pendingClusterRefreshFrame !== null) {
+          cancelAnimationFrame(pendingClusterRefreshFrame);
+        }
+
+        pendingClusterRefreshFrame = requestAnimationFrame(() => {
+          pendingClusterRefreshFrame = null;
+          updateMapSources(map, geoJsonRef.current, {
+            animate: true,
+            force: options.force,
+          });
+        });
+      };
+      const refreshClustersNow = () =>
+        updateMapSources(map, geoJsonRef.current, {
+          animate: true,
+          force: true,
+        });
+      map.on("zoom", refreshClusters);
+      map.on("move", refreshClusters);
+      map.on("zoomend", refreshClustersNow);
+      map.on("moveend", refreshClustersNow);
 
       map.on("load", () => {
         console.log("Map loaded, mapRef will be set");
@@ -1131,6 +1176,9 @@ export const SightingsMap = ({
 
     return () => {
       cancelled = true;
+      if (mapInstance && pendingClusterRefreshFrame !== null) {
+        cancelAnimationFrame(pendingClusterRefreshFrame);
+      }
       const transitionTimer = mapInstance
         ? clusterTransitionTimers.get(mapInstance)
         : undefined;
