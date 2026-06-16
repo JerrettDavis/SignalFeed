@@ -22,6 +22,7 @@ const eslintConfig = defineConfig([
     "next-env.d.ts",
     "*.config.*",
     // Vendored third-party files:
+    "public/sw.js",
     "public/maplibre-worker.js",
   ]),
 ]);
