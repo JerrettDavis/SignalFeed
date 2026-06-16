@@ -8,6 +8,7 @@ const eslintConfig = defineConfig([
   ...nextTs,
   {
     rules: {
+      "react/display-name": "off",
       "react-hooks/purity": "off",
       "react-hooks/set-state-in-effect": "off",
     },
