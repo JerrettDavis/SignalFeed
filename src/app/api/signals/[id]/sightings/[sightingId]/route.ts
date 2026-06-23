@@ -20,6 +20,7 @@ import {
 import { buildSignalSightingRepository } from "@/adapters/repositories/postgres/postgres-signal-sighting-repository";
 import { getSql } from "@/adapters/repositories/postgres/client";
 import { cookies } from "next/headers";
+import { getVerifiedSession } from "@/shared/session";
 import type { SignalId } from "@/domain/signals/signal";
 import type { SightingId } from "@/domain/sightings/sighting";
 
@@ -37,13 +38,11 @@ export async function POST(request: NextRequest, context: RouteParams) {
     const signalId = request.nextUrl.pathname.split("/")[3]; // /api/signals/:signalId/sightings/:sightingId
 
     const cookieStore = await cookies();
-    const sessionData = cookieStore.get("session_data");
+    const session = await getVerifiedSession(cookieStore);
 
-    if (!sessionData) {
+    if (!session) {
       return jsonUnauthorized("Must be logged in");
     }
-
-    const session = JSON.parse(sessionData.value);
 
     const signalRepo = getSignalRepository();
     const signal = await signalRepo.getById(signalId as SignalId);
@@ -90,9 +89,9 @@ export async function DELETE(request: NextRequest, context: RouteParams) {
     const signalId = request.nextUrl.pathname.split("/")[3];
 
     const cookieStore = await cookies();
-    const sessionData = cookieStore.get("session_data");
+    const session = await getVerifiedSession(cookieStore);
 
-    if (!sessionData) {
+    if (!session) {
       return jsonUnauthorized("Must be logged in");
     }
 

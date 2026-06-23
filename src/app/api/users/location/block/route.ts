@@ -8,6 +8,7 @@ import {
   jsonNoContent,
 } from "@/shared/http";
 import { z } from "zod";
+import { getVerifiedSession } from "@/shared/session";
 
 const BlockUserSchema = z.object({
   blockedUserId: z.string(),
@@ -16,13 +17,13 @@ const BlockUserSchema = z.object({
 // GET /api/users/location/block - Get list of blocked users
 export async function GET() {
   const cookieStore = await cookies();
-  const sessionData = cookieStore.get("session_data");
+  const session = await getVerifiedSession(cookieStore);
 
-  if (!sessionData) {
+  if (!session) {
     return jsonUnauthorized("Not authenticated");
   }
 
-  const { userId } = JSON.parse(sessionData.value);
+  const { userId } = session;
   const repository = getLocationSharingRepository();
 
   const blockedUsers = await repository.getBlockedUsers(userId);
@@ -33,13 +34,13 @@ export async function GET() {
 // POST /api/users/location/block - Block a user from seeing your location
 export async function POST(request: NextRequest) {
   const cookieStore = await cookies();
-  const sessionData = cookieStore.get("session_data");
+  const session = await getVerifiedSession(cookieStore);
 
-  if (!sessionData) {
+  if (!session) {
     return jsonUnauthorized("Not authenticated");
   }
 
-  const { userId } = JSON.parse(sessionData.value);
+  const { userId } = session;
 
   try {
     const body = await request.json();
@@ -69,13 +70,13 @@ export async function POST(request: NextRequest) {
 // DELETE /api/users/location/block - Unblock a user
 export async function DELETE(request: NextRequest) {
   const cookieStore = await cookies();
-  const sessionData = cookieStore.get("session_data");
+  const session = await getVerifiedSession(cookieStore);
 
-  if (!sessionData) {
+  if (!session) {
     return jsonUnauthorized("Not authenticated");
   }
 
-  const { userId } = JSON.parse(sessionData.value);
+  const { userId } = session;
 
   try {
     const { searchParams } = new URL(request.url);

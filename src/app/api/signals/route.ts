@@ -21,6 +21,7 @@ import {
   jsonUnauthorized,
 } from "@/shared/http";
 import { cookies } from "next/headers";
+import { getVerifiedSession } from "@/shared/session";
 
 export const runtime = "nodejs";
 
@@ -48,15 +49,8 @@ export async function GET(req: NextRequest) {
   try {
     // Check for authenticated user (optional)
     const cookieStore = await cookies();
-    const sessionData = cookieStore.get("session_data");
-
-    let userId: string | undefined;
-    if (sessionData) {
-      const session = JSON.parse(sessionData.value);
-      if (new Date(session.expiresAt) >= new Date()) {
-        userId = session.userId;
-      }
-    }
+    const session = await getVerifiedSession(cookieStore);
+    const userId: string | undefined = session?.userId;
 
     // If authenticated, use personalized ranking
     if (userId) {
@@ -144,21 +138,13 @@ export async function GET(req: NextRequest) {
  */
 export async function POST(req: NextRequest) {
   try {
-    // Get authenticated user
+    // Get authenticated user from the verified signed session
     const cookieStore = await cookies();
-    const sessionData = cookieStore.get("session_data");
+    const session = await getVerifiedSession(cookieStore);
 
-    if (!sessionData) {
+    if (!session) {
       return NextResponse.json(
         { error: "Unauthorized. Please sign in." },
-        { status: 401 }
-      );
-    }
-
-    const session = JSON.parse(sessionData.value);
-    if (new Date(session.expiresAt) < new Date()) {
-      return NextResponse.json(
-        { error: "Session expired. Please sign in again." },
         { status: 401 }
       );
     }

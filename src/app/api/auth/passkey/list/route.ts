@@ -1,5 +1,6 @@
 import { getPasskeyRepository } from "@/adapters/repositories/repository-factory";
 import { jsonOk, jsonUnauthorized } from "@/shared/http";
+import { getVerifiedSession } from "@/shared/session";
 import { cookies } from "next/headers";
 
 export const runtime = "nodejs";
@@ -8,30 +9,11 @@ export const runtime = "nodejs";
 export const GET = async () => {
   try {
     const cookieStore = await cookies();
-    const sessionData = cookieStore.get("session_data");
+    const session = await getVerifiedSession(cookieStore);
 
-    console.log("[Passkey List] Session check:", {
-      hasSessionData: !!sessionData,
-      sessionValue: sessionData?.value ? "present" : "missing",
-    });
-
-    if (!sessionData) {
-      console.error("[Passkey List] No session data found");
+    if (!session) {
+      console.error("[Passkey List] No valid session");
       return jsonUnauthorized("Not authenticated");
-    }
-
-    const session = JSON.parse(sessionData.value);
-
-    console.log("[Passkey List] Session parsed:", {
-      userId: session.userId,
-      email: session.email,
-      expiresAt: session.expiresAt,
-      isExpired: new Date(session.expiresAt) < new Date(),
-    });
-
-    if (new Date(session.expiresAt) < new Date()) {
-      console.error("[Passkey List] Session expired");
-      return jsonUnauthorized("Session expired");
     }
 
     const passkeyRepo = getPasskeyRepository();

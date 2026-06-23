@@ -1,5 +1,6 @@
 import { cookies } from "next/headers";
 import { jwtService } from "@/adapters/auth/jwt-service";
+import { getVerifiedSession } from "@/shared/session";
 import type { TokenPayload } from "@/ports/auth";
 import type { AdminUserId } from "@/domain/auth/admin-user";
 
@@ -91,42 +92,25 @@ export const getAdminAccess = async (): Promise<{
 
   console.log("[getAdminAccess] No admin token, checking user session...");
 
-  // Second, check for regular user session with admin email
+  // Second, check for a regular user session with an admin email.
+  // SECURITY: identity is taken from the server-verified signed session token,
+  // never from the forgeable client-readable `session_data` cookie.
   const cookieStore = await cookies();
-  const sessionData = cookieStore.get("session_data");
+  const session = await getVerifiedSession(cookieStore);
 
-  if (!sessionData) {
-    console.log("[getAdminAccess] No session data found");
+  if (!session) {
+    console.log("[getAdminAccess] No valid session");
     return { isAdmin: false, username: null };
   }
 
-  try {
-    const session = JSON.parse(sessionData.value);
-    console.log("[getAdminAccess] Session found:", {
+  // Check if user's email is in admin list
+  if (session.email && isAdminEmail(session.email)) {
+    return {
+      isAdmin: true,
+      username: session.username || session.email,
       email: session.email,
-      expiresAt: session.expiresAt,
-    });
-
-    // Check if session expired
-    if (new Date(session.expiresAt) < new Date()) {
-      console.log("[getAdminAccess] Session expired");
-      return { isAdmin: false, username: null };
-    }
-
-    // Check if user's email is in admin list
-    if (session.email && isAdminEmail(session.email)) {
-      console.log("[getAdminAccess] Email is in admin list:", session.email);
-      return {
-        isAdmin: true,
-        username: session.username || session.email,
-        email: session.email,
-      };
-    }
-
-    console.log("[getAdminAccess] Email not in admin list:", session.email);
-    return { isAdmin: false, username: null };
-  } catch (error) {
-    console.log("[getAdminAccess] Error parsing session:", error);
-    return { isAdmin: false, username: null };
+    };
   }
+
+  return { isAdmin: false, username: null };
 };

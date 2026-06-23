@@ -17,7 +17,10 @@ export type User = {
   updatedAt: string;
 };
 
-export type NewUser = Omit<User, "id" | "createdAt" | "updatedAt" | "membershipTier"> & {
+export type NewUser = Omit<
+  User,
+  "id" | "createdAt" | "updatedAt" | "membershipTier"
+> & {
   membershipTier?: MembershipTier;
 };
 export type UpdateUser = Partial<Omit<NewUser, "email">>;
@@ -26,13 +29,44 @@ export type UpdateUser = Partial<Omit<NewUser, "email">>;
  * Validates email format
  */
 export const validateEmail = (email: string): Result<string, DomainError> => {
-  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-  if (!emailRegex.test(email)) {
+  // Reject overly long input outright to bound work and avoid abuse.
+  if (typeof email !== "string" || email.length > 254) {
     return err({
       code: "user.invalid_email",
       message: "Invalid email format.",
     });
   }
+
+  // Linear, backtracking-free validation: split on the single "@" and check
+  // each side independently. This avoids the catastrophic backtracking that an
+  // adjacent-quantifier regex like /^[^\s@]+@[^\s@]+\.[^\s@]+$/ can exhibit.
+  const atIndex = email.indexOf("@");
+  if (atIndex <= 0 || atIndex !== email.lastIndexOf("@")) {
+    return err({
+      code: "user.invalid_email",
+      message: "Invalid email format.",
+    });
+  }
+
+  const local = email.slice(0, atIndex);
+  const domain = email.slice(atIndex + 1);
+
+  const noWhitespace = /^\S+$/; // single quantifier, no backtracking risk
+  const dotIndex = domain.indexOf(".");
+
+  const valid =
+    noWhitespace.test(local) &&
+    noWhitespace.test(domain) &&
+    dotIndex > 0 &&
+    dotIndex < domain.length - 1;
+
+  if (!valid) {
+    return err({
+      code: "user.invalid_email",
+      message: "Invalid email format.",
+    });
+  }
+
   return ok(email);
 };
 

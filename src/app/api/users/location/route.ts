@@ -9,6 +9,7 @@ import {
 } from "@/shared/http";
 import { z } from "zod";
 import { canSeeLocation } from "@/domain/users/location-sharing";
+import { getVerifiedSession } from "@/shared/session";
 
 const UpdateLocationSchema = z.object({
   latitude: z.number().min(-90).max(90),
@@ -22,13 +23,13 @@ const UpdateLocationSchema = z.object({
 // GET /api/users/location - Get all active user locations (that viewer can see)
 export async function GET() {
   const cookieStore = await cookies();
-  const sessionData = cookieStore.get("session_data");
+  const session = await getVerifiedSession(cookieStore);
 
-  if (!sessionData) {
+  if (!session) {
     return jsonUnauthorized("Not authenticated");
   }
 
-  const { userId: viewerId } = JSON.parse(sessionData.value);
+  const viewerId = session.userId;
   const repository = getLocationSharingRepository();
 
   // Get all locations with Follow Me enabled
@@ -54,13 +55,13 @@ export async function GET() {
 // POST /api/users/location - Update current user&apos;s location
 export async function POST(request: NextRequest) {
   const cookieStore = await cookies();
-  const sessionData = cookieStore.get("session_data");
+  const session = await getVerifiedSession(cookieStore);
 
-  if (!sessionData) {
+  if (!session) {
     return jsonUnauthorized("Not authenticated");
   }
 
-  const { userId } = JSON.parse(sessionData.value);
+  const { userId } = session;
 
   try {
     const body = await request.json();
@@ -91,13 +92,13 @@ export async function POST(request: NextRequest) {
 // DELETE /api/users/location - Stop sharing location
 export async function DELETE() {
   const cookieStore = await cookies();
-  const sessionData = cookieStore.get("session_data");
+  const session = await getVerifiedSession(cookieStore);
 
-  if (!sessionData) {
+  if (!session) {
     return jsonUnauthorized("Not authenticated");
   }
 
-  const { userId } = JSON.parse(sessionData.value);
+  const { userId } = session;
   const repository = getLocationSharingRepository();
 
   await repository.deleteLocation(userId);

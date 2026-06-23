@@ -3,13 +3,18 @@ import {
   getPasskeyRepository,
   getUserRepository,
 } from "@/adapters/repositories/repository-factory";
-import { createSession, generateSessionToken } from "@/domain/auth/auth";
+import { createSession } from "@/domain/auth/auth";
 import {
   jsonOk,
   jsonBadRequest,
   jsonUnauthorized,
   jsonServerError,
 } from "@/shared/http";
+import {
+  createSessionToken,
+  sessionCookieOptions,
+  sessionDataCookieOptions,
+} from "@/shared/session";
 import { cookies } from "next/headers";
 import type { PasskeyId } from "@/domain/auth/passkey";
 import type { UserId } from "@/domain/users/user";
@@ -91,7 +96,7 @@ export const POST = async (request: Request) => {
       user.username,
       user.role
     );
-    const sessionToken = generateSessionToken();
+    const sessionToken = await createSessionToken(session);
 
     const response = jsonOk({
       data: {
@@ -104,21 +109,12 @@ export const POST = async (request: Request) => {
       },
     });
 
-    response.cookies.set("session", sessionToken, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "lax",
-      maxAge: 60 * 60 * 24 * 7,
-      path: "/",
-    });
-
-    response.cookies.set("session_data", JSON.stringify(session), {
-      httpOnly: false,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "lax",
-      maxAge: 60 * 60 * 24 * 7,
-      path: "/",
-    });
+    response.cookies.set("session", sessionToken, sessionCookieOptions);
+    response.cookies.set(
+      "session_data",
+      JSON.stringify(session),
+      sessionDataCookieOptions
+    );
 
     response.cookies.delete("passkey_auth_challenge");
     response.cookies.delete("passkey_auth_user_id");

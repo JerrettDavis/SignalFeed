@@ -2,6 +2,7 @@ import { NextRequest } from "next/server";
 import { z } from "zod";
 import { getPushSubscriptionRepository } from "@/adapters/repositories/repository-factory";
 import { jsonOk, jsonBadRequest, jsonUnauthorized } from "@/shared/http";
+import { getVerifiedSession } from "@/shared/session";
 import { cookies } from "next/headers";
 
 const SubscribeSchema = z.object({
@@ -16,13 +17,15 @@ const SubscribeSchema = z.object({
 
 export async function POST(request: NextRequest) {
   try {
-    // Check authentication - get userId from session cookie
+    // Check authentication - get userId from the verified signed session
     const cookieStore = await cookies();
-    const sessionData = cookieStore.get("session_data");
-    const userId = sessionData?.value ? JSON.parse(sessionData.value).userId : null;
-    
+    const session = await getVerifiedSession(cookieStore);
+    const userId = session?.userId ?? null;
+
     if (!userId) {
-      return jsonUnauthorized("Must be logged in to subscribe to push notifications");
+      return jsonUnauthorized(
+        "Must be logged in to subscribe to push notifications"
+      );
     }
 
     // Parse request body
@@ -30,7 +33,9 @@ export async function POST(request: NextRequest) {
     const parsed = SubscribeSchema.safeParse(body);
 
     if (!parsed.success) {
-      return jsonBadRequest(parsed.error.issues[0]?.message || "Invalid subscription data");
+      return jsonBadRequest(
+        parsed.error.issues[0]?.message || "Invalid subscription data"
+      );
     }
 
     // Save subscription

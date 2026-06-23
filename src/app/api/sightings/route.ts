@@ -25,6 +25,78 @@ import {
 
 export const runtime = "nodejs";
 
+/**
+ * Returns true if the host is a private, loopback, link-local, or
+ * cloud-metadata address that must never be the target of an outbound fetch.
+ */
+const isBlockedHost = (host: string): boolean => {
+  const h = host.toLowerCase();
+  if (
+    h === "localhost" ||
+    h === "127.0.0.1" ||
+    h === "::1" ||
+    h === "0.0.0.0" ||
+    h === "169.254.169.254" || // cloud metadata endpoint
+    h.endsWith(".local") ||
+    h.endsWith(".internal")
+  ) {
+    return true;
+  }
+  // RFC 1918 / link-local / unique-local ranges.
+  if (
+    /^10\./.test(h) ||
+    /^192\.168\./.test(h) ||
+    /^172\.(1[6-9]|2\d|3[0-1])\./.test(h) ||
+    /^169\.254\./.test(h) ||
+    /^127\./.test(h) ||
+    /^fc00:/.test(h) ||
+    /^fd[0-9a-f]{2}:/.test(h) ||
+    /^fe80:/.test(h)
+  ) {
+    return true;
+  }
+  return false;
+};
+
+/**
+ * Resolve the trusted, server-configured URL for the internal push-send
+ * endpoint. The host is taken ONLY from server configuration so that an
+ * attacker-controlled Host header cannot redirect the outbound request (SSRF).
+ * Returns null if no safe destination is configured/allowed.
+ */
+const resolvePushSendUrl = (): string | null => {
+  const base =
+    process.env.PUSH_SEND_BASE_URL ||
+    process.env.NEXT_PUBLIC_APP_URL ||
+    (process.env.VERCEL_ENV === "production"
+      ? "https://www.signalfeed.app"
+      : process.env.VERCEL_URL
+        ? `https://${process.env.VERCEL_URL}`
+        : process.env.NODE_ENV !== "production"
+          ? "http://localhost:3000"
+          : null);
+
+  if (!base) return null;
+
+  let parsed: URL;
+  try {
+    parsed = new URL("/api/push/send", base);
+  } catch {
+    return null;
+  }
+
+  if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
+    return null;
+  }
+
+  // In production, refuse to call internal/loopback/metadata hosts.
+  if (process.env.NODE_ENV === "production" && isBlockedHost(parsed.hostname)) {
+    return null;
+  }
+
+  return parsed.toString();
+};
+
 const repository = getSightingRepository();
 const createSighting = buildCreateSighting({
   repository,
@@ -235,20 +307,28 @@ export const POST = async (request: Request) => {
     });
   }
 
-  // Send push notification for new sighting (non-blocking)
+  // Send push notification for new sighting (non-blocking).
+  //
+  // SECURITY (SSRF): The destination origin is derived from server-side
+  // configuration, NOT from the incoming request (request.url / Host header is
+  // attacker-controllable). We additionally allow-list the resolved host to
+  // reject internal/loopback/metadata targets before issuing the fetch.
   const sighting = result.value;
-  fetch(`${new URL(request.url).origin}/api/push/send`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      title: "New Signal Reported",
-      body: sighting.description.slice(0, 100),
-      url: `/?sighting=${sighting.id}`,
-      tag: `sighting-${sighting.id}`,
-    }),
-  }).catch((error) => {
-    console.error("[Push] Failed to send notification:", error);
-  });
+  const pushUrl = resolvePushSendUrl();
+  if (pushUrl) {
+    fetch(pushUrl, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        title: "New Signal Reported",
+        body: sighting.description.slice(0, 100),
+        url: `/?sighting=${sighting.id}`,
+        tag: `sighting-${sighting.id}`,
+      }),
+    }).catch((error) => {
+      console.error("[Push] Failed to send notification:", error);
+    });
+  }
 
   // Invalidate all sightings caches on creation
   const { invalidateCache } = await import("@/shared/cache");
