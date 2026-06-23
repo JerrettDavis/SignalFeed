@@ -4,23 +4,27 @@ import {
   getUserRepository,
 } from "@/adapters/repositories/repository-factory";
 import { jsonOk, jsonBadRequest, jsonServerError } from "@/shared/http";
-import { cookies } from "next/headers";
+import { z } from "zod";
 
 export const runtime = "nodejs";
 
 const RP_ID = process.env.NEXT_PUBLIC_RP_ID || "localhost";
 
+const OptionsSchema = z.object({
+  email: z.string().min(1).email(),
+});
+
 // POST /api/auth/passkey/login/options
 export const POST = async (request: Request) => {
   try {
     const body = await request.json();
-    const { email } = body;
 
-    console.log("[Passkey Login Options] Request for email:", email);
-
-    if (!email) {
+    // Validate request input; the lookup below uses the validated value.
+    const parsed = OptionsSchema.safeParse(body);
+    if (!parsed.success) {
       return jsonBadRequest("Email required");
     }
+    const { email } = parsed.data;
 
     const userRepo = getUserRepository();
     const user = await userRepo.getByEmail(email);

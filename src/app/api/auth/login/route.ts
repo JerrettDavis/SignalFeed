@@ -14,21 +14,30 @@ import {
   sessionCookieOptions,
   sessionDataCookieOptions,
 } from "@/shared/session";
+import { z } from "zod";
 
 export const runtime = "nodejs";
 
 const userRepo = getUserRepository();
 const credRepo = getCredentialsRepository();
 
+const LoginSchema = z.object({
+  email: z.string().min(1).email(),
+  password: z.string().min(1),
+});
+
 // POST /api/auth/login
 export const POST = async (request: Request) => {
   try {
     const body = await request.json();
-    const { email, password } = body;
 
-    if (!email || !password) {
+    // Validate and sanitize request input up front. Authorization decisions
+    // below operate on the parsed/validated values, not raw request input.
+    const parsed = LoginSchema.safeParse(body);
+    if (!parsed.success) {
       return jsonBadRequest("Email and password are required");
     }
+    const { email, password } = parsed.data;
 
     // Get credentials
     const creds = await credRepo.getByEmail(email);

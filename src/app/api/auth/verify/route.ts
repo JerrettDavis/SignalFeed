@@ -17,21 +17,29 @@ import {
 } from "@/shared/session";
 import { generateUserId } from "@/shared/secure-id";
 import { cookies } from "next/headers";
+import { z } from "zod";
 
 export const runtime = "nodejs";
 
 const userRepo = getUserRepository();
 const magicLinkRepo = getMagicLinkRepository();
 
+const TokenSchema = z.string().min(1).max(512);
+
 // GET /api/auth/verify?token=xxx
 export const GET = async (request: Request) => {
   try {
     const url = new URL(request.url);
-    const token = url.searchParams.get("token");
+    const rawToken = url.searchParams.get("token");
 
-    if (!token) {
+    // Validate the token format before using it. The authoritative check is
+    // magicLinkRepo.verify(), which matches the token against server-side
+    // state; identity is derived from that lookup, not from request input.
+    const tokenResult = TokenSchema.safeParse(rawToken);
+    if (!tokenResult.success) {
       return jsonBadRequest("Token is required");
     }
+    const token = tokenResult.data;
 
     // Verify token
     const email = await magicLinkRepo.verify(token);

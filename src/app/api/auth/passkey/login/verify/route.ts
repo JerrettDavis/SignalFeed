@@ -16,6 +16,7 @@ import {
   sessionDataCookieOptions,
 } from "@/shared/session";
 import { cookies } from "next/headers";
+import { z } from "zod";
 import type { PasskeyId } from "@/domain/auth/passkey";
 import type { UserId } from "@/domain/users/user";
 
@@ -23,6 +24,10 @@ export const runtime = "nodejs";
 
 const RP_ID = process.env.NEXT_PUBLIC_RP_ID || "localhost";
 const ORIGIN = process.env.NEXT_PUBLIC_ORIGIN || "http://localhost:3000";
+
+const CredentialSchema = z.object({
+  credential: z.object({ id: z.string().min(1) }).passthrough(),
+});
 
 // POST /api/auth/passkey/login/verify
 export const POST = async (request: Request) => {
@@ -36,14 +41,19 @@ export const POST = async (request: Request) => {
     }
 
     const body = await request.json();
-    const { credential } = body;
 
-    if (!credential) {
+    // Validate the shape of the client-supplied credential before use. The raw
+    // credential object is still passed to the cryptographic verifier below,
+    // but branch decisions use the validated id.
+    const parsed = CredentialSchema.safeParse(body);
+    if (!parsed.success) {
       return jsonBadRequest("Missing credential");
     }
+    const credential = body.credential;
+    const validatedCredentialId = parsed.data.credential.id;
 
     const userId = userIdCookie.value as UserId;
-    const credentialId = credential.id as PasskeyId;
+    const credentialId = validatedCredentialId as PasskeyId;
 
     const passkeyRepo = getPasskeyRepository();
     const passkey = await passkeyRepo.getById(credentialId);
