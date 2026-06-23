@@ -68,7 +68,7 @@ export const buildSignalSightingRepository = (
       `;
 
       console.log(
-        `[SignalSighting] Added sighting ${sanitizeForLog(sightingId)} to signal ${sanitizeForLog(signalId)}`
+        `[SignalSighting] Added sighting ${encodeURIComponent(sanitizeForLog(sightingId))} to signal ${encodeURIComponent(sanitizeForLog(signalId))}`
       );
     },
 
@@ -79,7 +79,7 @@ export const buildSignalSightingRepository = (
       `;
 
       console.log(
-        `[SignalSighting] Removed sighting ${sanitizeForLog(sightingId)} from signal ${sanitizeForLog(signalId)}`
+        `[SignalSighting] Removed sighting ${encodeURIComponent(sanitizeForLog(sightingId))} from signal ${encodeURIComponent(sanitizeForLog(signalId))}`
       );
     },
 
