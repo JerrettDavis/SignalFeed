@@ -7,6 +7,7 @@
 import type { Sql } from "postgres";
 import type { SignalId } from "@/domain/signals/signal";
 import type { SightingId } from "@/domain/sightings/sighting";
+import { sanitizeForLog } from "@/shared/sanitize-log";
 
 export interface SignalSightingAssociation {
   id: string;
@@ -67,7 +68,7 @@ export const buildSignalSightingRepository = (
       `;
 
       console.log(
-        `[SignalSighting] Added sighting ${sightingId} to signal ${signalId}`
+        `[SignalSighting] Added sighting ${sanitizeForLog(sightingId)} to signal ${sanitizeForLog(signalId)}`
       );
     },
 
@@ -78,7 +79,7 @@ export const buildSignalSightingRepository = (
       `;
 
       console.log(
-        `[SignalSighting] Removed sighting ${sightingId} from signal ${signalId}`
+        `[SignalSighting] Removed sighting ${sanitizeForLog(sightingId)} from signal ${sanitizeForLog(signalId)}`
       );
     },
 
