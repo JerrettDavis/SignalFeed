@@ -1,14 +1,21 @@
-import { getUserRepository, getCredentialsRepository } from "@/adapters/repositories/repository-factory";
+import {
+  getUserRepository,
+  getCredentialsRepository,
+} from "@/adapters/repositories/repository-factory";
 import {
   hashPassword,
   validatePassword,
   createSession,
-  generateSessionToken,
 } from "@/domain/auth/auth";
 import { validateEmail, createUser } from "@/domain/users/user";
 import type { UserId } from "@/domain/users/user";
 import { jsonBadRequest, jsonCreated, jsonServerError } from "@/shared/http";
-import { NextResponse } from "next/server";
+import {
+  createSessionToken,
+  sessionCookieOptions,
+  sessionDataCookieOptions,
+} from "@/shared/session";
+import { generateUserId } from "@/shared/secure-id";
 
 export const runtime = "nodejs";
 
@@ -39,8 +46,8 @@ export const POST = async (request: Request) => {
       return jsonBadRequest("Email already registered");
     }
 
-    // Create user ID
-    const userId = `user-${Date.now()}-${Math.random().toString(36).substring(2, 9)}` as UserId;
+    // Create user ID (cryptographically secure random suffix)
+    const userId = generateUserId() as UserId;
 
     // Hash password
     const passwordHash = await hashPassword(password);
@@ -77,7 +84,7 @@ export const POST = async (request: Request) => {
       userResult.value.username,
       userResult.value.role
     );
-    const sessionToken = generateSessionToken();
+    const sessionToken = await createSessionToken(session);
 
     // Set session cookie
     const response = jsonCreated({
@@ -91,21 +98,12 @@ export const POST = async (request: Request) => {
       },
     });
 
-    response.cookies.set("session", sessionToken, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "lax",
-      maxAge: 60 * 60 * 24 * 7, // 7 days
-      path: "/",
-    });
-
-    response.cookies.set("session_data", JSON.stringify(session), {
-      httpOnly: false, // Allow client access
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "lax",
-      maxAge: 60 * 60 * 24 * 7, // 7 days
-      path: "/",
-    });
+    response.cookies.set("session", sessionToken, sessionCookieOptions);
+    response.cookies.set(
+      "session_data",
+      JSON.stringify(session),
+      sessionDataCookieOptions
+    );
 
     return response;
   } catch (error) {

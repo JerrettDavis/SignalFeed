@@ -1,6 +1,7 @@
 import { generateRegistrationOptions } from "@simplewebauthn/server";
 import { getPasskeyRepository } from "@/adapters/repositories/repository-factory";
 import { jsonOk, jsonUnauthorized, jsonServerError } from "@/shared/http";
+import { getVerifiedSession } from "@/shared/session";
 import { cookies } from "next/headers";
 
 export const runtime = "nodejs";
@@ -12,30 +13,11 @@ const RP_ID = process.env.NEXT_PUBLIC_RP_ID || "localhost";
 export const POST = async () => {
   try {
     const cookieStore = await cookies();
-    const sessionData = cookieStore.get("session_data");
+    const session = await getVerifiedSession(cookieStore);
 
-    console.log("[Passkey Register Options] Session check:", {
-      hasSessionData: !!sessionData,
-      sessionValue: sessionData?.value ? "present" : "missing",
-    });
-
-    if (!sessionData) {
-      console.error("[Passkey Register Options] No session data found");
+    if (!session) {
+      console.error("[Passkey Register Options] No valid session");
       return jsonUnauthorized("Must be logged in to register a passkey");
-    }
-
-    const session = JSON.parse(sessionData.value);
-
-    console.log("[Passkey Register Options] Session parsed:", {
-      userId: session.userId,
-      email: session.email,
-      expiresAt: session.expiresAt,
-      isExpired: new Date(session.expiresAt) < new Date(),
-    });
-
-    if (new Date(session.expiresAt) < new Date()) {
-      console.error("[Passkey Register Options] Session expired");
-      return jsonUnauthorized("Session expired");
     }
 
     const passkeyRepo = getPasskeyRepository();

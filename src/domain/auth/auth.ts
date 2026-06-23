@@ -1,3 +1,4 @@
+import { randomBytes } from "crypto";
 import { err, ok, type DomainError, type Result } from "@/shared/result";
 import type { UserId } from "@/domain/users/user";
 
@@ -71,41 +72,43 @@ export const validatePassword = (
   return ok(password);
 };
 
+// Cost factor for bcrypt. 12 is a reasonable adaptive default for 2024+.
+const BCRYPT_ROUNDS = 12;
+
 /**
- * Hash password using Web Crypto API
+ * Hash a password using bcrypt (adaptive, salted).
+ *
+ * SECURITY: Uses a slow, salted, adaptive hash. Do NOT replace with a fast
+ * unsalted digest (e.g. a single SHA-256) — those are trivially brute-forced.
  */
 export const hashPassword = async (password: string): Promise<string> => {
-  const encoder = new TextEncoder();
-  const data = encoder.encode(password + process.env.PASSWORD_SALT || "sightsignal-salt");
-  
-  // Use Node.js crypto for server-side
-  if (typeof window === "undefined") {
-    const crypto = await import("crypto");
-    return crypto.createHash("sha256").update(password + (process.env.PASSWORD_SALT || "sightsignal-salt")).digest("hex");
-  }
-  
-  // Use Web Crypto API for client-side (shouldn't happen, but fallback)
-  const hashBuffer = await crypto.subtle.digest("SHA-256", data);
-  const hashArray = Array.from(new Uint8Array(hashBuffer));
-  return hashArray.map((b) => b.toString(16).padStart(2, "0")).join("");
+  const bcrypt = (await import("bcryptjs")).default;
+  return bcrypt.hash(password, BCRYPT_ROUNDS);
 };
 
 /**
- * Verify password against hash
+ * Verify a password against a stored hash using a constant-time bcrypt compare.
  */
 export const verifyPassword = async (
   password: string,
   hash: string
 ): Promise<boolean> => {
-  const inputHash = await hashPassword(password);
-  return inputHash === hash;
+  const bcrypt = (await import("bcryptjs")).default;
+  try {
+    return await bcrypt.compare(password, hash);
+  } catch {
+    return false;
+  }
 };
 
 /**
- * Generate a session token (simple implementation - use JWT in production)
+ * Generate a session token using a cryptographically secure random source.
+ *
+ * SECURITY: Must use crypto.randomBytes — never Math.random(), which is
+ * predictable and unsuitable for security tokens.
  */
 export const generateSessionToken = (): string => {
-  return `session-${Date.now()}-${Math.random().toString(36).substring(2, 15)}`;
+  return randomBytes(32).toString("hex");
 };
 
 /**

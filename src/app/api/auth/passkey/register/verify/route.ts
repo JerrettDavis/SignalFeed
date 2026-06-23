@@ -7,6 +7,7 @@ import {
   jsonServerError,
 } from "@/shared/http";
 import { cookies } from "next/headers";
+import { getVerifiedSession } from "@/shared/session";
 import type { PasskeyId } from "@/domain/auth/passkey";
 import type { UserId } from "@/domain/users/user";
 
@@ -19,21 +20,17 @@ const ORIGIN = process.env.NEXT_PUBLIC_ORIGIN || "http://localhost:3000";
 export const POST = async (request: Request) => {
   try {
     const cookieStore = await cookies();
-    const sessionData = cookieStore.get("session_data");
+    // Identity is derived from the server-verified, signed session token — NOT
+    // from the client-readable `session_data` cookie (which is forgeable).
+    const session = await getVerifiedSession(cookieStore);
     const challengeCookie = cookieStore.get("passkey_challenge");
 
-    if (!sessionData) {
+    if (!session) {
       return jsonUnauthorized("Must be logged in");
     }
 
     if (!challengeCookie) {
       return jsonBadRequest("No challenge found");
-    }
-
-    const session = JSON.parse(sessionData.value);
-
-    if (new Date(session.expiresAt) < new Date()) {
-      return jsonUnauthorized("Session expired");
     }
 
     const body = await request.json();

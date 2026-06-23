@@ -8,25 +8,13 @@ import {
 } from "@/adapters/repositories/repository-factory";
 import { systemClock } from "@/adapters/clock/system-clock";
 import { cookies } from "next/headers";
+import { jsonUnauthorized } from "@/shared/http";
+import { getVerifiedSession } from "@/shared/session";
 import { seedSignals } from "@/data/seed";
 import type { SignalId } from "@/domain/signals/signal";
 
 const ANONYMOUS_VIEWER_COOKIE = "anonymous_signal_viewer_id";
 const ANONYMOUS_VIEWER_MAX_AGE_SECONDS = 60 * 60 * 24 * 365;
-
-const parseSessionUserId = (sessionData: { value: string } | undefined) => {
-  if (!sessionData) return null;
-
-  try {
-    const session = JSON.parse(sessionData.value);
-    if (new Date(session.expiresAt) < new Date()) {
-      return null;
-    }
-    return typeof session.userId === "string" ? session.userId : null;
-  } catch {
-    return null;
-  }
-};
 
 const getAnonymousViewerId = (
   cookieStore: Awaited<ReturnType<typeof cookies>>
@@ -101,15 +89,18 @@ export async function POST(
 ) {
   try {
     const cookieStore = await cookies();
-    const sessionData = cookieStore.get("session_data");
-    const authenticatedUserId = parseSessionUserId(sessionData);
+    const session = await getVerifiedSession(cookieStore);
+    const authenticatedUserId = session?.userId ?? null;
     const anonymousViewer = authenticatedUserId
       ? null
       : getAnonymousViewerId(cookieStore);
     const { id: signalId } = await params;
 
-    if (!authenticatedUserId && anonymousViewer) {
-      return buildAnonymousViewResponse(signalId, anonymousViewer);
+    if (!authenticatedUserId) {
+      if (anonymousViewer) {
+        return buildAnonymousViewResponse(signalId, anonymousViewer);
+      }
+      return jsonUnauthorized("Not authenticated");
     }
 
     // Build use case

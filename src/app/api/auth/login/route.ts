@@ -1,6 +1,19 @@
-import { getUserRepository, getCredentialsRepository } from "@/adapters/repositories/repository-factory";
-import { verifyPassword, createSession, generateSessionToken } from "@/domain/auth/auth";
-import { jsonBadRequest, jsonOk, jsonServerError, jsonUnauthorized } from "@/shared/http";
+import {
+  getUserRepository,
+  getCredentialsRepository,
+} from "@/adapters/repositories/repository-factory";
+import { verifyPassword, createSession } from "@/domain/auth/auth";
+import {
+  jsonBadRequest,
+  jsonOk,
+  jsonServerError,
+  jsonUnauthorized,
+} from "@/shared/http";
+import {
+  createSessionToken,
+  sessionCookieOptions,
+  sessionDataCookieOptions,
+} from "@/shared/session";
 
 export const runtime = "nodejs";
 
@@ -40,9 +53,16 @@ export const POST = async (request: Request) => {
       return jsonUnauthorized("Account is not active");
     }
 
-    // Create session
-    const session = createSession(user.id, user.email, user.username, user.role);
-    const sessionToken = generateSessionToken();
+    // Create session. The signed token in the httpOnly `session` cookie is the
+    // authoritative source of identity; `session_data` is a non-trusted,
+    // client-readable copy for UI hydration only.
+    const session = createSession(
+      user.id,
+      user.email,
+      user.username,
+      user.role
+    );
+    const sessionToken = await createSessionToken(session);
 
     // Set session cookie
     const response = jsonOk({
@@ -56,21 +76,12 @@ export const POST = async (request: Request) => {
       },
     });
 
-    response.cookies.set("session", sessionToken, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "lax",
-      maxAge: 60 * 60 * 24 * 7, // 7 days
-      path: "/",
-    });
-
-    response.cookies.set("session_data", JSON.stringify(session), {
-      httpOnly: false,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "lax",
-      maxAge: 60 * 60 * 24 * 7,
-      path: "/",
-    });
+    response.cookies.set("session", sessionToken, sessionCookieOptions);
+    response.cookies.set(
+      "session_data",
+      JSON.stringify(session),
+      sessionDataCookieOptions
+    );
 
     return response;
   } catch (error) {

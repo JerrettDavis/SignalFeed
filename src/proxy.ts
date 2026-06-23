@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { jwtVerify } from "jose";
+import { getVerifiedSession } from "@/shared/session";
 
 const isAuthEnabled = (): boolean => {
   return process.env.ADMIN_AUTH_ENABLED !== "false";
@@ -47,24 +48,12 @@ const hasAdminAccess = async (request: NextRequest): Promise<boolean> => {
     }
   }
 
-  // Check for user session with admin email
-  const sessionData = request.cookies.get("session_data")?.value;
-  if (sessionData) {
-    try {
-      const session = JSON.parse(sessionData);
-
-      // Check if session expired
-      if (new Date(session.expiresAt) < new Date()) {
-        return false;
-      }
-
-      // Check if user's email is in admin list
-      if (session.email && isAdminEmail(session.email)) {
-        return true;
-      }
-    } catch {
-      // Session parsing failed
-    }
+  // Check for a user session with an admin email.
+  // SECURITY: identity comes from the server-verified signed session token, not
+  // from the forgeable client-readable `session_data` cookie.
+  const session = await getVerifiedSession(request.cookies);
+  if (session?.email && isAdminEmail(session.email)) {
+    return true;
   }
 
   return false;

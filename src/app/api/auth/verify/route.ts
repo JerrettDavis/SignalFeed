@@ -2,7 +2,7 @@ import {
   getUserRepository,
   getMagicLinkRepository,
 } from "@/adapters/repositories/repository-factory";
-import { createSession, generateSessionToken } from "@/domain/auth/auth";
+import { createSession } from "@/domain/auth/auth";
 import { createUser, UserId } from "@/domain/users/user";
 import {
   jsonBadRequest,
@@ -10,6 +10,12 @@ import {
   jsonUnauthorized,
   jsonServerError,
 } from "@/shared/http";
+import {
+  createSessionToken,
+  sessionCookieOptions,
+  sessionDataCookieOptions,
+} from "@/shared/session";
+import { generateUserId } from "@/shared/secure-id";
 import { cookies } from "next/headers";
 
 export const runtime = "nodejs";
@@ -38,8 +44,7 @@ export const GET = async (request: Request) => {
     let user = await userRepo.getByEmail(email);
     if (!user) {
       // Create new user using domain function
-      const userId =
-        `user-${Date.now()}-${Math.random().toString(36).substring(2, 9)}` as UserId;
+      const userId = generateUserId() as UserId;
       const userResult = createUser(userId, {
         email,
         role: "user",
@@ -64,26 +69,17 @@ export const GET = async (request: Request) => {
       user.username,
       user.role
     );
-    const sessionToken = generateSessionToken();
+    const sessionToken = await createSessionToken(session);
 
     // Set session cookies using Next.js 15+ API
     const cookieStore = await cookies();
 
-    cookieStore.set("session", sessionToken, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "lax",
-      maxAge: 60 * 60 * 24 * 7,
-      path: "/",
-    });
-
-    cookieStore.set("session_data", JSON.stringify(session), {
-      httpOnly: false,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "lax",
-      maxAge: 60 * 60 * 24 * 7,
-      path: "/",
-    });
+    cookieStore.set("session", sessionToken, sessionCookieOptions);
+    cookieStore.set(
+      "session_data",
+      JSON.stringify(session),
+      sessionDataCookieOptions
+    );
 
     return jsonOk({
       data: {

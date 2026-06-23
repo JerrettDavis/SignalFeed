@@ -2,6 +2,7 @@ import { cookies } from "next/headers";
 import { NextRequest } from "next/server";
 import { getUserSettingsRepository } from "@/adapters/repositories/repository-factory";
 import { jsonOk, jsonBadRequest, jsonUnauthorized } from "@/shared/http";
+import { getVerifiedSession } from "@/shared/session";
 import { z } from "zod";
 
 const UpdateSettingsSchema = z.object({
@@ -16,13 +17,13 @@ const UpdateSettingsSchema = z.object({
 // GET /api/users/settings - Get user settings
 export async function GET() {
   const cookieStore = await cookies();
-  const sessionData = cookieStore.get("session_data");
+  const session = await getVerifiedSession(cookieStore);
 
-  if (!sessionData) {
+  if (!session) {
     return jsonUnauthorized("Not authenticated");
   }
 
-  const { userId } = JSON.parse(sessionData.value);
+  const { userId } = session;
   const repository = getUserSettingsRepository();
 
   let settings = await repository.findByUserId(userId);
@@ -41,13 +42,13 @@ export async function GET() {
 // PATCH /api/users/settings - Update user settings
 export async function PATCH(request: NextRequest) {
   const cookieStore = await cookies();
-  const sessionData = cookieStore.get("session_data");
+  const session = await getVerifiedSession(cookieStore);
 
-  if (!sessionData) {
+  if (!session) {
     return jsonUnauthorized("Not authenticated");
   }
 
-  const { userId } = JSON.parse(sessionData.value);
+  const { userId } = session;
 
   try {
     const body = await request.json();

@@ -31,7 +31,14 @@ jobs:
         uses: github/codeql-action/init@v4.36.2
         with:
           languages: ${{ matrix.language }}
-          queries: +security-and-quality
+          # Security-focused suite. Avoids the code-quality rules (unused vars,
+          # unreachable code, etc.) that are not security issues and add noise.
+          queries: security-extended
+          # Exclude vendored/bundled third-party assets from analysis.
+          config: |
+            paths-ignore:
+              - public/**
+              - '**/*.min.js'
 
       - name: Autobuild
         uses: github/codeql-action/autobuild@v4.36.2

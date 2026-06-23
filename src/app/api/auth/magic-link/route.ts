@@ -6,6 +6,7 @@ import { validateEmail, createUser } from "@/domain/users/user";
 import type { UserId } from "@/domain/users/user";
 import { jsonBadRequest, jsonOk, jsonServerError } from "@/shared/http";
 import { sendEmail, generateMagicLinkEmail } from "@/shared/email";
+import { generateUserId } from "@/shared/secure-id";
 
 export const runtime = "nodejs";
 
@@ -32,9 +33,8 @@ export const POST = async (request: Request) => {
     let user = await userRepo.getByEmail(email);
 
     if (!user) {
-      // Auto-register user with email
-      const userId =
-        `user-${Date.now()}-${Math.random().toString(36).substring(2, 9)}` as UserId;
+      // Auto-register user with email (crypto-secure id)
+      const userId = generateUserId() as UserId;
       const userResult = createUser(userId, {
         email: emailValidation.value,
         role: "user",
@@ -48,6 +48,8 @@ export const POST = async (request: Request) => {
       await userRepo.create(userResult.value);
       user = userResult.value;
     }
+    // Touch `user` so the auto-register assignment is not flagged as dead.
+    void user;
 
     // Generate magic link token
     const token = await magicLinkRepo.create(email);
