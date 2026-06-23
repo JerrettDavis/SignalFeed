@@ -84,7 +84,9 @@ export const POST = async (request: Request) => {
       console.log("\n╔══════════════════════════════════════════╗");
       console.log("║          MAGIC LINK GENERATED            ║");
       console.log("╠══════════════════════════════════════════╣");
-      console.log(`║ Email: ${sanitizeForLog(email).padEnd(32)} ║`);
+      console.log(
+        `║ Email: ${encodeURIComponent(sanitizeForLog(email)).padEnd(32)} ║`
+      );
       console.log("║                                          ║");
       console.log("║ Click this link to login:                ║");
       console.log(`║ ${magicLink.substring(0, 40).padEnd(40)} ║`);
