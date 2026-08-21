@@ -1,6 +1,6 @@
 "use client";
 
-import type maplibregl from "maplibre-gl";
+import type * as maplibregl from "maplibre-gl";
 import type { GeoJSONSource } from "maplibre-gl";
 import { useEffect, useMemo, useRef } from "react";
 import type { LatLng, Polygon } from "@/domain/geo/geo";
@@ -304,8 +304,7 @@ export const GeofenceMap = ({ geofences, draftPoints, onMapClick }: Props) => {
       return;
     }
     const geofenceSource = map.getSource("geofences") as
-      | GeoJSONSource
-      | undefined;
+      GeoJSONSource | undefined;
     const draftSource = map.getSource("draft") as GeoJSONSource | undefined;
     geofenceSource?.setData(geofenceGeoJson);
     draftSource?.setData(draftGeoJson);

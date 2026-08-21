@@ -1,6 +1,6 @@
 "use client";
 
-import type maplibregl from "maplibre-gl";
+import type * as maplibregl from "maplibre-gl";
 import type { ExpressionSpecification, GeoJSONSource } from "maplibre-gl";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { config } from "@/shared/config";
@@ -406,8 +406,7 @@ const animatePreviousClusters = (
   }
 
   const source = map.getSource(CLUSTER_GHOST_SOURCE_ID) as
-    | GeoJSONSource
-    | undefined;
+    GeoJSONSource | undefined;
   if (!source || !map.getLayer("cluster-ghosts")) {
     return;
   }
@@ -462,11 +461,9 @@ const updateMapSources = (
   options: { animate?: boolean; force?: boolean } = {}
 ) => {
   const clusterSource = map.getSource(CLUSTER_SOURCE_ID) as
-    | GeoJSONSource
-    | undefined;
+    GeoJSONSource | undefined;
   const pointSource = map.getSource(POINT_SOURCE_ID) as
-    | GeoJSONSource
-    | undefined;
+    GeoJSONSource | undefined;
   const clusterState = toClusterState(geoJson, map.getZoom());
   const previousState = lastClusterStates.get(map);
 
@@ -811,7 +808,7 @@ export const SightingsMap = ({
         map.on("click", "clusters", onClusterClick);
         map.on("click", "unclustered-point", onPointClick);
       };
-      const refreshClusters = (options: { force?: boolean } = {}) => {
+      const refreshClusters = () => {
         if (pendingClusterRefreshFrame !== null) {
           return;
         }
@@ -820,7 +817,6 @@ export const SightingsMap = ({
           pendingClusterRefreshFrame = null;
           updateMapSources(map, geoJsonRef.current, {
             animate: true,
-            force: options.force,
           });
         });
       };
@@ -1636,8 +1632,7 @@ export const SightingsMap = ({
 
     try {
       const source = map.getSource("selected-geofence") as
-        | GeoJSONSource
-        | undefined;
+        GeoJSONSource | undefined;
       if (source) {
         source.setData(geofenceGeoJson);
       } else {

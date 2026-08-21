@@ -45,6 +45,7 @@ const eslintConfig = defineConfig([
     // Vendored third-party files:
     "public/sw.js",
     "public/maplibre-worker.js",
+    "public/maplibre-gl-shared.mjs",
   ]),
 ]);
 

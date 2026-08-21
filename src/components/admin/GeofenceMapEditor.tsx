@@ -2,7 +2,8 @@
 
 import { useEffect, useRef, useState } from "react";
 import { loadMaplibre } from "@/shared/maplibre";
-import type maplibregl from "maplibre-gl";
+import type * as maplibregl from "maplibre-gl";
+import type { FeatureCollection } from "geojson";
 
 interface Point {
   lat: number;
@@ -36,7 +37,7 @@ export function GeofenceMapEditor({
     const polygonCoords = mapPoints.map((p) => [p.lng, p.lat]);
     polygonCoords.push(polygonCoords[0]); // Close the polygon
 
-    const polygonGeoJson: GeoJSON.FeatureCollection = {
+    const polygonGeoJson: FeatureCollection = {
       type: "FeatureCollection",
       features: [
         {
@@ -51,7 +52,7 @@ export function GeofenceMapEditor({
     };
 
     // Create points GeoJSON
-    const pointsGeoJson: GeoJSON.FeatureCollection = {
+    const pointsGeoJson: FeatureCollection = {
       type: "FeatureCollection",
       features: mapPoints.map((p, idx) => ({
         type: "Feature",
