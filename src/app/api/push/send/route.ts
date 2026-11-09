@@ -1,6 +1,6 @@
 import { NextRequest } from "next/server";
 import { z } from "zod";
-import webpush from "web-push";
+import * as webpush from "web-push";
 import { getPushSubscriptionRepository } from "@/adapters/repositories/repository-factory";
 import { jsonOk, jsonBadRequest, jsonServerError } from "@/shared/http";
 
